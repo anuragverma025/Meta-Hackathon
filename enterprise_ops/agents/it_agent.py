@@ -2,6 +2,6 @@ from agents.base_agent import BaseAgent
 from agents.policies import RulePolicy
 
 
-class OversightAgent(BaseAgent):
+class ITAgent(BaseAgent):
     def __init__(self, agent_id: str):
-        super().__init__(agent_id, RulePolicy(role="oversight"))
+        super().__init__(agent_id, RulePolicy(role="it"))
