@@ -1,0 +1,57 @@
+difficulty: 2
+description: >
+  Finance-Manager coordination under drift. Two deals require budget approvals
+  above the $10 000 threshold, so the Finance agent must obtain Manager
+  countersigns via the message bus before calling approve_budget. Schema drift
+  at step 20 will rename fields in approve_budget and get_project_status
+  responses. Agents that don't adapt will receive STALE_SCHEMA flags.
+  Noise at 5% — budget approvals may need retries.
+episode_length: 40
+schema_drift_enabled: true
+noise_rate: 0.05
+
+resource_pool:
+  engineers: 4
+  budget: 60000
+  compute: 20
+
+starting_tickets:
+  - id: "TKT-001"
+    priority: 2
+    description: "Finance portal slow — reports timing out"
+    sla_steps_remaining: 14
+  - id: "TKT-002"
+    priority: 3
+    description: "Printer offline in boardroom"
+    sla_steps_remaining: 22
+
+starting_deals:
+  - id: "DEAL-001"
+    stage: "negotiation"
+    value: 18500.0
+    client_name: "Meridian Partners"
+    steps_since_contact: 5
+  - id: "DEAL-002"
+    stage: "proposal"
+    value: 22000.0
+    client_name: "Frontier Retail"
+    steps_since_contact: 2
+  - id: "DEAL-003"
+    stage: "prospecting"
+    value: 7800.0
+    client_name: "BlueShift Co"
+    steps_since_contact: 0
+
+starting_tasks:
+  - id: "TASK-001"
+    name: "Enterprise licence renewal"
+    depends_on: []
+    deadline_steps: 12
+  - id: "TASK-002"
+    name: "New vendor onboarding"
+    depends_on: ["TASK-001"]
+    deadline_steps: 20
+  - id: "TASK-003"
+    name: "Compliance audit preparation"
+    depends_on: []
+    deadline_steps: 35

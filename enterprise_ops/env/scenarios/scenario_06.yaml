@@ -1,0 +1,79 @@
+difficulty: 4
+description: >
+  Tight SLAs with resource contention. Five tickets compete for only 4
+  available engineers. Three tasks have cascading dependencies with overlapping
+  deadlines — completing TASK-001 frees TASK-002 and TASK-003 simultaneously,
+  but the Manager only has budget to staff one at a time. Finance must approve
+  two large spends in sequence; the second requires Manager countersign.
+  Schema drift fires at step 20 (get_tickets rename) and step 40 (resolve_ticket
+  rename + approve_budget deprecation). Noise at 8%. Oversight agent is under
+  pressure: expect STUCK_LOOP attempts from agents that can't adapt to drift.
+episode_length: 60
+schema_drift_enabled: true
+noise_rate: 0.08
+
+resource_pool:
+  engineers: 4
+  budget: 35000
+  compute: 14
+
+starting_tickets:
+  - id: "TKT-001"
+    priority: 1
+    description: "Payment processing service down — revenue blocked"
+    sla_steps_remaining: 3
+  - id: "TKT-002"
+    priority: 1
+    description: "Customer portal returning blank pages"
+    sla_steps_remaining: 4
+  - id: "TKT-003"
+    priority: 2
+    description: "Backup job failing nightly for 3 days"
+    sla_steps_remaining: 7
+  - id: "TKT-004"
+    priority: 2
+    description: "SSL certificate expiring in 48 hours"
+    sla_steps_remaining: 6
+  - id: "TKT-005"
+    priority: 3
+    description: "Internal wiki search broken"
+    sla_steps_remaining: 18
+
+starting_deals:
+  - id: "DEAL-001"
+    stage: "negotiation"
+    value: 28000.0
+    client_name: "Ironclad Corp"
+    steps_since_contact: 7
+  - id: "DEAL-002"
+    stage: "proposal"
+    value: 13500.0
+    client_name: "Zenith Partners"
+    steps_since_contact: 4
+  - id: "DEAL-003"
+    stage: "prospecting"
+    value: 5000.0
+    client_name: "Pixel Agency"
+    steps_since_contact: 2
+
+starting_tasks:
+  - id: "TASK-001"
+    name: "Emergency payment service patch"
+    depends_on: []
+    deadline_steps: 4
+  - id: "TASK-002"
+    name: "Portal CDN cache invalidation"
+    depends_on: ["TASK-001"]
+    deadline_steps: 8
+  - id: "TASK-003"
+    name: "Certificate rotation across all services"
+    depends_on: ["TASK-001"]
+    deadline_steps: 7
+  - id: "TASK-004"
+    name: "Backup infrastructure replacement"
+    depends_on: ["TASK-002", "TASK-003"]
+    deadline_steps: 20
+  - id: "TASK-005"
+    name: "Penetration test remediation"
+    depends_on: ["TASK-004"]
+    deadline_steps: 45

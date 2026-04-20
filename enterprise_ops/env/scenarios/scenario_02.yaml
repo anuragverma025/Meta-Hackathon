@@ -1,0 +1,51 @@
+difficulty: 1
+description: >
+  Finance-department focus. Three deals need attention before they go cold
+  (steps_since_contact climbing). Budget approvals are all under threshold so
+  no countersign is required. No schema drift, minimal noise. Good warm-up for
+  the Finance agent learning the approve_budget / get_project_status loop.
+episode_length: 30
+schema_drift_enabled: false
+noise_rate: 0.02
+
+resource_pool:
+  engineers: 6
+  budget: 80000
+  compute: 24
+
+starting_tickets:
+  - id: "TKT-001"
+    priority: 3
+    description: "Finance team laptop refresh request"
+    sla_steps_remaining: 20
+  - id: "TKT-002"
+    priority: 2
+    description: "Expense reporting tool login failure"
+    sla_steps_remaining: 12
+
+starting_deals:
+  - id: "DEAL-001"
+    stage: "negotiation"
+    value: 9500.0
+    client_name: "Bright Solutions"
+    steps_since_contact: 4
+  - id: "DEAL-002"
+    stage: "proposal"
+    value: 6200.0
+    client_name: "NovaTech Ltd"
+    steps_since_contact: 7
+  - id: "DEAL-003"
+    stage: "prospecting"
+    value: 14000.0
+    client_name: "GlobalEdge Inc"
+    steps_since_contact: 1
+
+starting_tasks:
+  - id: "TASK-001"
+    name: "Q2 budget reconciliation"
+    depends_on: []
+    deadline_steps: 15
+  - id: "TASK-002"
+    name: "Vendor invoice audit"
+    depends_on: ["TASK-001"]
+    deadline_steps: 25

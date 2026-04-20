@@ -1,0 +1,50 @@
+difficulty: 2
+description: >
+  First cross-department scenario: IT must resolve tickets to unblock TASK-002,
+  which depends on TASK-001 that the Manager must assign resources to. Finance
+  holds the budget gate for the resource allocation. Schema drift is enabled —
+  agents must track field renames from step 20 onward. Moderate noise (5%)
+  means occasional retries required. Coordination via message bus is rewarded.
+episode_length: 40
+schema_drift_enabled: true
+noise_rate: 0.05
+
+resource_pool:
+  engineers: 5
+  budget: 40000
+  compute: 16
+
+starting_tickets:
+  - id: "TKT-001"
+    priority: 1
+    description: "CI/CD pipeline broken — all deploys blocked"
+    sla_steps_remaining: 6
+  - id: "TKT-002"
+    priority: 2
+    description: "Staging environment unreachable"
+    sla_steps_remaining: 10
+  - id: "TKT-003"
+    priority: 3
+    description: "Dev team VPN intermittent drops"
+    sla_steps_remaining: 18
+
+starting_deals:
+  - id: "DEAL-001"
+    stage: "proposal"
+    value: 11000.0
+    client_name: "Apex Systems"
+    steps_since_contact: 3
+
+starting_tasks:
+  - id: "TASK-001"
+    name: "Restore CI/CD pipeline"
+    depends_on: []
+    deadline_steps: 8
+  - id: "TASK-002"
+    name: "Deploy hotfix to production"
+    depends_on: ["TASK-001"]
+    deadline_steps: 14
+  - id: "TASK-003"
+    name: "Post-incident review"
+    depends_on: ["TASK-002"]
+    deadline_steps: 30

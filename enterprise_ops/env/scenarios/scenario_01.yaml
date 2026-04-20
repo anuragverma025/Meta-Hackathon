@@ -1,0 +1,41 @@
+difficulty: 1
+description: "Single-department focus. IT resolves tickets before SLA. No drift, low noise."
+episode_length: 30
+schema_drift_enabled: false
+noise_rate: 0.02
+
+resource_pool:
+  engineers: 5
+  budget: 50000
+  compute: 20
+
+starting_tickets:
+  - id: "TKT-001"
+    priority: 1
+    description: "Database server unresponsive"
+    sla_steps_remaining: 5
+  - id: "TKT-002"
+    priority: 2
+    description: "VPN latency spike for remote team"
+    sla_steps_remaining: 10
+  - id: "TKT-003"
+    priority: 3
+    description: "Printer offline in Finance dept"
+    sla_steps_remaining: 15
+
+starting_deals:
+  - id: "DEAL-001"
+    stage: "proposal"
+    value: 8000.0
+    client_name: "Acme Corp"
+    steps_since_contact: 2
+
+starting_tasks:
+  - id: "TASK-001"
+    name: "Deploy security patch v2.1"
+    depends_on: []
+    deadline_steps: 10
+  - id: "TASK-002"
+    name: "Quarterly infra review"
+    depends_on: ["TASK-001"]
+    deadline_steps: 20
