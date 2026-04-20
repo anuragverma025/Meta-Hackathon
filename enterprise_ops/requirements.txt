@@ -1,0 +1,10 @@
+openenv-core
+pydantic>=2.0
+fastapi
+httpx
+sqlalchemy
+aiosqlite
+pyyaml
+numpy
+pytest
+python-dotenv
