@@ -1,0 +1,34 @@
+name: enterprise-ops-arena
+description: >
+  Multi-agent RL environment simulating an enterprise with IT, Manager,
+  Finance and Oversight agents. Features schema drift, tool noise, 
+  inter-agent messaging, SLA tracking, and oversight-based reward shaping.
+  Covers OpenEnv Themes 1 and 3.1.
+  Sub-prizes: Fleet AI, Halluminate, Scale AI, Scaler AI Labs, Patronus AI.
+version: "1.0.0"
+tags:
+  - multi-agent
+  - enterprise
+  - world-modeling
+  - oversight
+  - schema-drift
+  - reinforcement-learning
+
+server:
+  entrypoint: server.app:app
+  port: 8000
+  dockerfile: server/Dockerfile
+
+models:
+  action: models.EnterpriseAction
+  observation: models.EnterpriseObservation
+
+scenarios:
+  - env/scenarios/scenario_01.yaml
+  - env/scenarios/scenario_02.yaml
+  - env/scenarios/scenario_03.yaml
+  - env/scenarios/scenario_04.yaml
+  - env/scenarios/scenario_05.yaml
+  - env/scenarios/scenario_06.yaml
+  - env/scenarios/scenario_07.yaml
+  - env/scenarios/scenario_08.yaml

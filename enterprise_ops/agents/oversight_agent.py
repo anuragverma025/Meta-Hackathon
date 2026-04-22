@@ -16,8 +16,14 @@ FALSE_POSITIVE -10  Oversight flags a healthy call (noise mis-read)
 from __future__ import annotations
 
 import json
+import sys
 from collections import defaultdict, deque
+from pathlib import Path
 from typing import Any, Optional
+
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
 
 class FlagType:
@@ -236,6 +242,11 @@ class OversightAgent:
         except (TypeError, ValueError):
             serialised = str(params)
         return f"{tool_name}::{serialised}"
+
+    def act(self, obs: Any) -> Any:
+        """No-op action — OversightAgent observes via observe(); it takes no env actions."""
+        from contracts import ActionSchema
+        return ActionSchema()
 
     def reset(self) -> None:
         """Clear per-agent call history. Call when env.reset() fires."""
