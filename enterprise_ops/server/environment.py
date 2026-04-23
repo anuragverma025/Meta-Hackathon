@@ -24,8 +24,8 @@ from collections import deque
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-# -- Ensure enterprise_ops/ root is importable ------------------------------
-_ROOT = Path(__file__).resolve().parent.parent
+# -- Ensure /app is importable (HF Space: all files in WORKDIR) -------------
+_ROOT = Path(__file__).resolve().parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
