@@ -12,5 +12,5 @@ COPY . .
 # HuggingFace Docker Spaces require port 7860
 EXPOSE 7860
 
-# Run the FastAPI server
+# Run the FastAPI server which mounts Gradio
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]

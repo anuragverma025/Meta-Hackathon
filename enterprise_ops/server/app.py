@@ -17,10 +17,12 @@ from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+import gradio as gr
 
 # ── Flat HuggingFace Space layout: all files are in /app ───────────────────
 from environment import EnterpriseEnvironment
 from models import EnterpriseAction, EnterpriseObservation
+from gradio_app import demo
 
 # ---------------------------------------------------------------------------
 # Pydantic request/response models for FastAPI serialisation
@@ -67,6 +69,7 @@ app = FastAPI(
 )
 
 env = EnterpriseEnvironment()
+app = gr.mount_gradio_app(app, demo, path="/")
 
 
 # ---------------------------------------------------------------------------

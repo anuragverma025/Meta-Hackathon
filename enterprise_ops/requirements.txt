@@ -9,3 +9,5 @@ pyyaml
 numpy
 python-dotenv
 pytest
+gradio
+matplotlib
