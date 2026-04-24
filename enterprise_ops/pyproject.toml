@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "enterprise-ops-arena"
+version = "1.0.0"
+description = "Multi-agent RL environment for EnterpriseOps Arena (Meta PyTorch OpenEnv Hackathon)"
+requires-python = ">=3.11"
+dependencies = [
+    "openenv-core",
+    "pydantic>=2.0",
+    "fastapi",
+    "uvicorn[standard]",
+    "httpx",
+    "pyyaml",
+    "sqlalchemy",
+    "aiosqlite",
+    "numpy",
+]
+
+[project.optional-dependencies]
+train = [
+    "torch>=2.0",
+    "transformers",
+    "trl",
+    "unsloth",
+]
+dev = [
+    "pytest",
+    "python-dotenv",
+]
+
+[tool.setuptools.packages.find]
+include = ["enterprise_ops*"]

@@ -158,3 +158,13 @@ class StepResult(BaseModel):
     )
     done: bool = Field(..., description="True if episode has ended")
     info: dict[str, Any] = Field(default_factory=dict, description="Debug/diagnostic info")
+
+
+# ---------------------------------------------------------------------------
+# Agent ID constants — canonical identifiers used by env and all agents
+# ---------------------------------------------------------------------------
+
+AGENT_IT       = "it_agent"
+AGENT_MANAGER  = "manager_agent"
+AGENT_FINANCE  = "finance_agent"
+AGENT_OVERSIGHT = "oversight_agent"

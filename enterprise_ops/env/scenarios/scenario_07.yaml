@@ -1,0 +1,94 @@
+difficulty: 4
+description: >
+  Resource scarcity under sustained pressure. Engineers pool starts at 3 —
+  below the number of concurrent tickets requiring human effort. Budget is
+  tight at $25 000 and compute is limited to 10 units. Four high-value deals
+  are at different pipeline stages; losing any of them (steps_since_contact
+  exceeding 10 without Finance action) would be a significant loss. Task
+  dependencies form a long chain: TASK-004 cannot start until TASK-001 through
+  TASK-003 are all complete. Schema drift fires at steps 20 and 40. Noise at
+  10% — highest so far — meaning roughly 1 in 10 calls fails transiently.
+  Agents must be highly selective about which tools to call and when, as wasted
+  calls under noise burn steps while SLAs bleed down.
+episode_length: 70
+schema_drift_enabled: true
+noise_rate: 0.10
+
+resource_pool:
+  engineers: 3
+  budget: 25000
+  compute: 10
+
+starting_tickets:
+  - id: "TKT-001"
+    priority: 1
+    description: "Data warehouse ETL pipeline crashed — BI reports stale"
+    sla_steps_remaining: 4
+  - id: "TKT-002"
+    priority: 1
+    description: "HR system inaccessible during open enrolment"
+    sla_steps_remaining: 5
+  - id: "TKT-003"
+    priority: 2
+    description: "Video conferencing service degraded for all offices"
+    sla_steps_remaining: 8
+  - id: "TKT-004"
+    priority: 2
+    description: "API gateway rate-limit misconfigured — partners affected"
+    sla_steps_remaining: 9
+  - id: "TKT-005"
+    priority: 3
+    description: "Dev environment Docker images outdated"
+    sla_steps_remaining: 25
+  - id: "TKT-006"
+    priority: 3
+    description: "Internal Slack bot unresponsive"
+    sla_steps_remaining: 30
+
+starting_deals:
+  - id: "DEAL-001"
+    stage: "negotiation"
+    value: 32000.0
+    client_name: "Cascade Dynamics"
+    steps_since_contact: 8
+  - id: "DEAL-002"
+    stage: "negotiation"
+    value: 17500.0
+    client_name: "Orion Health"
+    steps_since_contact: 5
+  - id: "DEAL-003"
+    stage: "proposal"
+    value: 9800.0
+    client_name: "Redstone Media"
+    steps_since_contact: 6
+  - id: "DEAL-004"
+    stage: "prospecting"
+    value: 42000.0
+    client_name: "Titan Logistics"
+    steps_since_contact: 2
+
+starting_tasks:
+  - id: "TASK-001"
+    name: "ETL pipeline recovery"
+    depends_on: []
+    deadline_steps: 5
+  - id: "TASK-002"
+    name: "HR system emergency access restoration"
+    depends_on: []
+    deadline_steps: 6
+  - id: "TASK-003"
+    name: "API gateway config rollback"
+    depends_on: []
+    deadline_steps: 10
+  - id: "TASK-004"
+    name: "Platform stability review"
+    depends_on: ["TASK-001", "TASK-002", "TASK-003"]
+    deadline_steps: 25
+  - id: "TASK-005"
+    name: "Disaster recovery drill"
+    depends_on: ["TASK-004"]
+    deadline_steps: 50
+  - id: "TASK-006"
+    name: "Infrastructure cost optimisation"
+    depends_on: ["TASK-004"]
+    deadline_steps: 55

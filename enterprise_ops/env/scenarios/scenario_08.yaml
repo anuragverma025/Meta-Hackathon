@@ -1,0 +1,122 @@
+difficulty: 5
+description: >
+  FULL CHAOS. Maximum pressure across every dimension simultaneously.
+  Seven tickets including three P1s with SLAs of 2-3 steps — any
+  hesitation causes an immediate breach. Engineers pool is 3 against
+  7 concurrent issues. Budget starts at $20 000 — a single large
+  approval exhausts it; agents must sequence spends carefully.
+  Five deals are in active stages; four have already gone several
+  steps without contact and will be lost if Finance doesn't act fast.
+  Task dependency graph is deep and wide: TASK-006 and TASK-007 each
+  require four predecessors to complete first, creating a critical path
+  that spans the full 80-step episode. Schema drift fires at steps 20,
+  40, and 60 (three events) — the most of any scenario — so the schema
+  will have mutated up to 6 fields by the end. Noise at 12%.
+  The Oversight agent will be kept very busy: expect hallucinations from
+  agents that haven't adapted to drift, policy breaches from Finance under
+  pressure, and loop detection triggering on panicked agents stuck retrying
+  failed calls. Perfect score requires flawless coordination, zero SLA
+  breaches, full schema adaptation, and every deal kept warm.
+episode_length: 80
+schema_drift_enabled: true
+noise_rate: 0.12
+
+resource_pool:
+  engineers: 3
+  budget: 20000
+  compute: 8
+
+starting_tickets:
+  - id: "TKT-001"
+    priority: 1
+    description: "Core banking ledger service unresponsive — transactions failing"
+    sla_steps_remaining: 2
+  - id: "TKT-002"
+    priority: 1
+    description: "Customer authentication completely down — no logins possible"
+    sla_steps_remaining: 2
+  - id: "TKT-003"
+    priority: 1
+    description: "CDN edge nodes returning 502 — site unreachable globally"
+    sla_steps_remaining: 3
+  - id: "TKT-004"
+    priority: 2
+    description: "Automated billing job skipped last night's run"
+    sla_steps_remaining: 5
+  - id: "TKT-005"
+    priority: 2
+    description: "Search index corrupted — product catalogue broken"
+    sla_steps_remaining: 6
+  - id: "TKT-006"
+    priority: 2
+    description: "Mobile push notifications queue backed up — 50k pending"
+    sla_steps_remaining: 8
+  - id: "TKT-007"
+    priority: 3
+    description: "Analytics dashboard data lag exceeding 4 hours"
+    sla_steps_remaining: 15
+
+starting_deals:
+  - id: "DEAL-001"
+    stage: "negotiation"
+    value: 48000.0
+    client_name: "Summit Capital"
+    steps_since_contact: 9
+  - id: "DEAL-002"
+    stage: "negotiation"
+    value: 27000.0
+    client_name: "Aurora Retail"
+    steps_since_contact: 7
+  - id: "DEAL-003"
+    stage: "proposal"
+    value: 15500.0
+    client_name: "Meridian Labs"
+    steps_since_contact: 8
+  - id: "DEAL-004"
+    stage: "proposal"
+    value: 11200.0
+    client_name: "Vertex Solutions"
+    steps_since_contact: 6
+  - id: "DEAL-005"
+    stage: "prospecting"
+    value: 62000.0
+    client_name: "Colossus Industries"
+    steps_since_contact: 3
+
+starting_tasks:
+  - id: "TASK-001"
+    name: "Banking ledger emergency failover"
+    depends_on: []
+    deadline_steps: 3
+  - id: "TASK-002"
+    name: "Auth service cold restart sequence"
+    depends_on: []
+    deadline_steps: 3
+  - id: "TASK-003"
+    name: "CDN origin failover activation"
+    depends_on: []
+    deadline_steps: 4
+  - id: "TASK-004"
+    name: "Billing job manual backfill"
+    depends_on: ["TASK-001"]
+    deadline_steps: 8
+  - id: "TASK-005"
+    name: "Search index rebuild"
+    depends_on: ["TASK-003"]
+    deadline_steps: 12
+  - id: "TASK-006"
+    name: "Platform integrity audit"
+    depends_on: ["TASK-001", "TASK-002", "TASK-003", "TASK-004"]
+    deadline_steps: 20
+  - id: "TASK-007"
+    name: "Full disaster recovery validation"
+    depends_on: ["TASK-004", "TASK-005", "TASK-006"]
+    deadline_steps: 45
+  - id: "TASK-008"
+    name: "Customer SLA compensation processing"
+    depends_on: ["TASK-006"]
+    deadline_steps: 30
+  - id: "TASK-009"
+    name: "Post-mortem and runbook update"
+    depends_on: ["TASK-007", "TASK-008"]
+    deadline_steps: 65

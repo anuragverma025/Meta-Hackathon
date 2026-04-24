@@ -1,0 +1,65 @@
+difficulty: 3
+description: >
+  All three departments active simultaneously. IT faces a P1 outage that blocks
+  two project tasks the Manager is tracking. Finance must approve a $15 000
+  infrastructure spend (requires countersign) while two deals are at risk of
+  going cold. Schema drift fires at steps 20 and 40. Noise at 7% means
+  approximately 1 in 14 calls will fail transiently. Agents must coordinate
+  via the message bus: IT needs resources from Manager, Manager needs budget
+  sign-off from Finance, Finance needs status updates from IT before approving.
+episode_length: 50
+schema_drift_enabled: true
+noise_rate: 0.07
+
+resource_pool:
+  engineers: 5
+  budget: 45000
+  compute: 18
+
+starting_tickets:
+  - id: "TKT-001"
+    priority: 1
+    description: "Production database failover — customers impacted"
+    sla_steps_remaining: 4
+  - id: "TKT-002"
+    priority: 1
+    description: "Authentication service returning 503"
+    sla_steps_remaining: 5
+  - id: "TKT-003"
+    priority: 2
+    description: "Email gateway delayed — 2-hour backlog"
+    sla_steps_remaining: 9
+  - id: "TKT-004"
+    priority: 3
+    description: "Dev sandbox out of disk space"
+    sla_steps_remaining: 20
+
+starting_deals:
+  - id: "DEAL-001"
+    stage: "negotiation"
+    value: 19000.0
+    client_name: "Solaris Group"
+    steps_since_contact: 6
+  - id: "DEAL-002"
+    stage: "proposal"
+    value: 8500.0
+    client_name: "ClearPath Ltd"
+    steps_since_contact: 8
+
+starting_tasks:
+  - id: "TASK-001"
+    name: "Database failover runbook execution"
+    depends_on: []
+    deadline_steps: 5
+  - id: "TASK-002"
+    name: "Auth service root-cause analysis"
+    depends_on: ["TASK-001"]
+    deadline_steps: 12
+  - id: "TASK-003"
+    name: "Infrastructure capacity expansion"
+    depends_on: ["TASK-002"]
+    deadline_steps: 25
+  - id: "TASK-004"
+    name: "Customer incident comms"
+    depends_on: ["TASK-001"]
+    deadline_steps: 8

@@ -2,12 +2,10 @@ openenv-core
 fastapi
 uvicorn[standard]
 pydantic>=2.0
-httpx
+pyyaml
 sqlalchemy
 aiosqlite
-pyyaml
 numpy
-python-dotenv
-pytest
+httpx
 gradio
-matplotlib
+requests
