@@ -69,7 +69,6 @@ app = FastAPI(
 )
 
 env = EnterpriseEnvironment()
-app = gr.mount_gradio_app(app, demo, path="/")
 
 
 # ---------------------------------------------------------------------------
@@ -155,3 +154,6 @@ def set_scenario(req: ScenarioRequest) -> dict[str, str]:
     """Switch scenario for the next reset() call (curriculum support)."""
     env.set_scenario(req.scenario_name)
     return {"status": "ok", "scenario": req.scenario_name}
+
+# Mount Gradio AFTER all API routes are defined
+app = gr.mount_gradio_app(app, demo, path="/")
