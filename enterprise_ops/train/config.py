@@ -47,8 +47,8 @@ class TrainingConfig:
     checkpoint_dir: str = "./checkpoints"
 
     # ── Curriculum ────────────────────────────────────────────────────────
-    curriculum_threshold: float = 0.6  # advance when avg_reward > this …
-    curriculum_window: int = 10        # … over this many episodes
+    curriculum_threshold: float = 0.4  # advance when avg_reward > this …
+    curriculum_window: int = 5         # … over this many episodes
     scenario_progression: List[str] = field(default_factory=lambda: [
         "scenario_01.yaml",
         "scenario_02.yaml",

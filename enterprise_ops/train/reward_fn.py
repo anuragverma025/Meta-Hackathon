@@ -222,7 +222,7 @@ def reward_trajectory(episode_scores: list) -> float:
 # ── FROM PAPER: KL regularization ──────────────────────────────────────────
 # From paper: "KL regularizer limits policy drift from base model"
 
-def kl_penalty(kl_divergence: float, beta: float = 0.01) -> float:
+def kl_penalty(kl_divergence: float, beta: float = 0.001) -> float:
     return -beta * kl_divergence
 
 

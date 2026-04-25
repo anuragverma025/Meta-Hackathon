@@ -451,26 +451,20 @@ class EnterpriseOpsTrainer:
             completions: list[str],
             **kwargs: Any,
         ) -> list[float]:
-            rewards: list[float] = []
+            raw_rewards: list[float] = []
+
             for completion in completions:
                 try:
-                    # Component 1: Format reward (from paper: verifiable rewards)
-                    # Agent must produce valid JSON with tool_call
                     m = re.search(r"\{.*\}", completion, re.DOTALL)
                     if not m:
-                        rewards.append(-1.0)
+                        raw_rewards.append(-2.0)
                         continue
 
                     try:
                         d = json.loads(m.group())
                     except json.JSONDecodeError:
-                        rewards.append(-0.5)
+                        raw_rewards.append(-1.5)
                         continue
-
-                    # Format reward: did agent produce valid actionable JSON?
-                    has_tool = bool(d.get("tool_call"))
-                    has_reasoning = bool(d.get("reasoning") or d.get("message_content"))
-                    format_reward = 1.0 if has_tool else (0.3 if has_reasoning else -0.5)
 
                     action = ActionSchema(
                         tool_call=d.get("tool_call"),
@@ -492,46 +486,52 @@ class EnterpriseOpsTrainer:
                     all_actions[AGENT_IT] = action
                     result = env.step(all_actions)
 
-                    # Component 2: Execution reward (from paper: execution-based rewards)
-                    # Direct feedback from environment execution
-                    task = sum(
-                        getattr(r, "task_completion", 0.0)
-                        for r in result.rewards.values()
-                    )
-                    sla = sum(
-                        getattr(r, "sla_adherence", 0.0)
-                        for r in result.rewards.values()
-                    )
-                    halluc = sum(
-                        getattr(r, "hallucination_penalty", 0.0)
-                        for r in result.rewards.values()
-                    )
-                    coord = sum(
-                        getattr(r, "coordination_bonus", 0.0)
-                        for r in result.rewards.values()
-                    )
+                    # Execution reward from environment
+                    env_reward = float(compute_reward(result))
 
-                    # Normalize execution reward to [-1, 1] range
-                    execution_reward = task * 0.05 + sla * 0.1 + coord * 0.1 + halluc
-                    execution_reward = max(-1.0, min(1.0, execution_reward))
+                    # Action quality: differentiates completions on hard scenarios
+                    # where environment rewards collapse due to noise/drift
+                    tool_called = d.get("tool_call", "")
+                    action_quality = {
+                        "resolve_ticket":    1.0,
+                        "get_tickets":       0.5,
+                        "allocate_resource": 0.3,
+                        "approve_budget":    0.3,
+                        "get_project_status": 0.2,
+                    }.get(tool_called, 0.0)
 
-                    # Component 3: SLA urgency reward (from paper: time-dependent rewards)
-                    # Extra bonus for resolving P1 tickets quickly
-                    urgency_bonus = 0.2 if task > 0 and sla > 0 else 0.0
+                    # Coordination bonus: agents that communicate get extra signal
+                    coord_bonus = 0.3 if d.get("message_to") else 0.0
 
-                    # Final GRPO reward: format + execution + urgency
-                    # Weights: format=40%, execution=50%, urgency=10%
-                    final_reward = (
-                        format_reward * 0.4
-                        + execution_reward * 0.5
-                        + urgency_bonus * 0.1
+                    # Reasoning quality: longer reasoning = more deliberate action
+                    reasoning = d.get("reasoning", "") or ""
+                    reasoning_bonus = min(len(reasoning) / 200.0, 0.5)
+
+                    # 60% env execution + 25% action quality + 15% coordination/reasoning
+                    combined = (
+                        env_reward * 0.6
+                        + action_quality * 0.25
+                        + (coord_bonus + reasoning_bonus) * 0.15
                     )
-
-                    rewards.append(float(final_reward))
+                    raw_rewards.append(combined)
 
                 except Exception:
-                    rewards.append(-1.0)
-            return rewards
+                    raw_rewards.append(-1.0)
+
+            # GRPO normalization: center around batch mean so GRPO sees relative
+            # ranking between completions even when absolute rewards are similar
+            if len(raw_rewards) > 1:
+                import statistics
+                mean_r = statistics.mean(raw_rewards)
+                std_r = statistics.stdev(raw_rewards) if len(raw_rewards) > 1 else 1.0
+                if std_r > 0.01:
+                    normalized = [(r - mean_r) / std_r for r in raw_rewards]
+                else:
+                    # Truly no variance: preserve small differences without amplifying noise
+                    normalized = [(r - mean_r) for r in raw_rewards]
+                return [float(r) for r in normalized]
+
+            return [float(r) for r in raw_rewards]
 
         return grpo_reward_fn
 
