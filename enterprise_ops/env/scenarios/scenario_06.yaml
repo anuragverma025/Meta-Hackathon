@@ -22,6 +22,22 @@ starting_tickets:
     priority: 1
     description: "Payment processing service down — revenue blocked"
     sla_steps_remaining: 3
+    subtasks:
+      - id: "SUBTASK-001"
+        ticket_id: "TKT-001"
+        sequence: 1
+        description: "Diagnose root cause of issue"
+        status: "pending"
+      - id: "SUBTASK-002"
+        ticket_id: "TKT-001"
+        sequence: 2
+        description: "Implement fix"
+        status: "pending"
+      - id: "SUBTASK-003"
+        ticket_id: "TKT-001"
+        sequence: 3
+        description: "Verify resolution and close"
+        status: "pending"
   - id: "TKT-002"
     priority: 1
     description: "Customer portal returning blank pages"

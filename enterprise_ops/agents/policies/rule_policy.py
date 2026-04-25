@@ -128,33 +128,72 @@ class RulePolicy:
 
     # ---------------- Manager ----------------
     def _manager_logic(self, obs):
-        if obs.resource_pool:
-            if obs.resource_pool.engineers_available < 1:
-                return {
-                    "message_to": "it_agent",
-                    "message_content": "No engineers available. Prioritize critical tickets.",
-                    "reasoning": "Resource shortage",
-                }
+        tickets = obs.tickets or []
+        critical_count = sum(1 for t in tickets if t.priority == 1 and not t.resolved)
+        normal_count = sum(1 for t in tickets if t.priority >= 2 and not t.resolved)
+        sla_breach_risk = sum(
+            1 for t in tickets if t.sla_steps_remaining <= 2 and not t.resolved
+        )
+        engineers = (
+            getattr(obs.resource_pool, "engineers_available", 3)
+            if obs.resource_pool else 3
+        )
 
-            if obs.resource_pool.budget_remaining < 100:
-                return {
-                    "message_to": "finance_agent",
-                    "message_content": "Budget critically low. Review deals.",
-                    "reasoning": "Budget issue",
-                }
-
-        if len(obs.project_tasks) > 5:
+        if sla_breach_risk > 0:
             return {
-                "message_to": "broadcast",
-                "message_content": "High workload detected. Prioritize execution.",
-                "reasoning": "Too many tasks",
+                "message_to": "it_tactical_agent",
+                "message_content": (
+                    f"CRITICAL ALERT: {sla_breach_risk} tickets breaching SLA. "
+                    "Prioritize immediately."
+                ),
+                "reasoning": "SLA breach imminent — escalating to tactical",
             }
 
-        # Default: check project status (earns +1 task_completion reward)
+        if critical_count > 2:
+            return {
+                "message_to": "it_tactical_agent",
+                "message_content": (
+                    f"HIGH LOAD: {critical_count} critical tickets. "
+                    "Focus on priority 1 queue."
+                ),
+                "reasoning": "High critical ticket volume",
+            }
+
+        if engineers < 1:
+            return {
+                "message_to": "broadcast",
+                "message_content": (
+                    "RESOURCE CONSTRAINT: No engineers available. "
+                    "Both IT agents pause non-critical work."
+                ),
+                "reasoning": "Resource shortage — broadcasting constraint",
+            }
+
+        if normal_count > 4 and critical_count == 0:
+            return {
+                "message_to": "it_strategic_agent",
+                "message_content": (
+                    f"BATCH MODE: {normal_count} normal tickets queued. "
+                    "Activate batch processing."
+                ),
+                "reasoning": "Large normal queue — activating strategic agent",
+            }
+
+        if obs.resource_pool and obs.resource_pool.engineers_available > 0:
+            return {
+                "tool_call": "allocate_resource",
+                "tool_params": {
+                    "resource_type": "engineers",
+                    "amount": 1,
+                    "requester_agent": "manager_agent",
+                },
+                "reasoning": "Allocating engineer resource for team",
+            }
+
         return {
             "tool_call": "get_project_status",
             "tool_params": {},
-            "reasoning": "Monitoring all project tasks",
+            "reasoning": "Checking project status",
         }
 
     # ---------------- OVERSIGHT (ADVANCED) ----------------
