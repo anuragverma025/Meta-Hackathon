@@ -13,29 +13,46 @@ class ITStrategicAgent(BaseAgent):
         self.batch_queue = []
 
     def act(self, obs: ObservationSchema) -> ActionSchema:
-        normal = [t for t in obs.tickets if t.priority >= 2 and not t.resolved]
+        tickets = obs.tickets or []
+        normal = [
+            t for t in tickets
+            if not t.resolved and t.priority >= 2
+        ]
 
-        if not normal:
-            if obs.inbox:
-                return ActionSchema(
-                    message_to="manager_agent",
-                    message_content=(
-                        "STRATEGIC: Normal queue empty. Available for reallocation."
-                    ),
-                    reasoning="Queue empty, awaiting manager instructions",
-                )
+        # Retry logic — skip last failed ticket
+        recent = obs.recent_history or []
+        last_failed_ticket = None
+        if recent:
+            last = recent[-1]
+            if not last.success and last.tool_call == "resolve_ticket":
+                last_failed_ticket = last.tool_params.get("ticket_id")
+
+        if normal:
+            # Skip failed ticket, try next
+            targets = [t for t in normal if t.id != last_failed_ticket]
+            if not targets:
+                targets = normal
+            # Sort by SLA pressure then priority
+            target = min(targets, key=lambda t: (t.sla_steps_remaining, t.priority))
             return ActionSchema(
-                tool_call="get_tickets",
-                tool_params={"priority_filter": 2},
-                reasoning="Scanning for normal priority tickets",
+                tool_call="resolve_ticket",
+                tool_params={
+                    "ticket_id": target.id,
+                    "resolution_note": "STRATEGIC: Backlog resolution",
+                },
+                reasoning=f"Clearing P{target.priority} backlog: {target.id}",
             )
 
-        target = min(normal, key=lambda t: (t.priority, t.sla_steps_remaining))
+        if obs.inbox:
+            return ActionSchema(
+                message_to="manager_agent",
+                message_content="STRATEGIC: Normal queue empty. Available.",
+                tool_call="get_project_status",
+                tool_params={},
+                reasoning="Queue empty - monitoring projects",
+            )
         return ActionSchema(
-            tool_call="resolve_ticket",
-            tool_params={
-                "ticket_id": target.id,
-                "resolution_note": f"STRATEGIC: Batch resolution of {target.id}",
-            },
-            reasoning=f"Batch processing P{target.priority} ticket {target.id}",
+            tool_call="get_tickets",
+            tool_params={"priority_filter": 2},
+            reasoning="Scanning for new normal priority tickets",
         )

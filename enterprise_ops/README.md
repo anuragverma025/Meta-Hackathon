@@ -1,3 +1,12 @@
+---
+title: EnterpriseOps Arena
+emoji: 🏢
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 # EnterpriseOps Arena
 
 Multi-agent reinforcement learning environment for enterprise operations simulation.

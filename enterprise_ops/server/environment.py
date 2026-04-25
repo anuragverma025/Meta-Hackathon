@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sqlite3
 import sys
 import time
@@ -44,25 +45,26 @@ from contracts import (
     ObservationSchema,
     RewardComponents,
     StepResult as InnerStepResult,
-    AGENT_IT,
+    AGENT_IT_TACTICAL,
+    AGENT_IT_STRATEGIC,
     AGENT_MANAGER,
     AGENT_FINANCE,
     AGENT_OVERSIGHT,
 )
 from env.env import EnterpriseOpsEnv
-from agents import ITAgent, ManagerAgent, FinanceAgent
+from agents import ITStrategicAgent, ITTacticalAgent, ManagerAgent, FinanceAgent
 from models import EnterpriseAction, EnterpriseObservation
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-ALL_AGENTS = [AGENT_IT, AGENT_MANAGER, AGENT_FINANCE, AGENT_OVERSIGHT]
+ALL_AGENTS = [AGENT_IT_TACTICAL, AGENT_IT_STRATEGIC, AGENT_MANAGER, AGENT_FINANCE, AGENT_OVERSIGHT]
 
 STEP_TIMEOUT_S = 30.0
 LOOP_WINDOW = 3
 LOOP_PENALTY = -5.0
-MAX_STEPS_HARD_CAP = 8
+MAX_STEPS_HARD_CAP = int(os.environ.get("MAX_STEPS", "8"))
 TIMEOUT_PENALTY = -10.0
 
 # ---------------------------------------------------------------------------
@@ -214,7 +216,8 @@ class EnterpriseEnvironment(Environment):
 
         # -- Rule-based fallback agents for untrained roles -----------------
         self._fallback_agents: dict[str, Any] = {
-            AGENT_IT: ITAgent(AGENT_IT),
+            AGENT_IT_TACTICAL: ITTacticalAgent(),
+            AGENT_IT_STRATEGIC: ITStrategicAgent(),
             AGENT_MANAGER: ManagerAgent(AGENT_MANAGER),
             AGENT_FINANCE: FinanceAgent(AGENT_FINANCE),
         }

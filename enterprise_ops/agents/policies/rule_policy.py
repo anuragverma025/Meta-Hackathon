@@ -4,6 +4,7 @@ from agents.utils import (
     get_negotiation_deal,
     get_ready_task,
 )
+from contracts import ObservationSchema
 
 
 class RulePolicy:
@@ -15,7 +16,7 @@ class RulePolicy:
             return self._it_logic(obs)
 
         if self.role == "finance":
-            return self._finance_logic(obs, agent_id)
+            return self._finance_logic(obs)
 
         if self.role == "project":
             return self._project_logic(obs, agent_id)
@@ -79,32 +80,61 @@ class RulePolicy:
         }
 
     # ---------------- Finance ----------------
-    def _finance_logic(self, obs, agent_id: str):
-        deal = get_stale_deal(obs.active_deals)
-        if deal:
+    def _finance_logic(self, obs: ObservationSchema) -> dict:
+        step = obs.step_number
+        resource = obs.resource_pool
+        budget = resource.budget_remaining if resource else 50000
+
+        # Steps 0-2: stay passive to avoid inheriting early SLA-breach penalties.
+        # A no-tool action returns zero reward rather than a negative step.
+        if step <= 2:
+            return {
+                "reasoning": "Early critical window: passive monitoring while IT handles SLA rescue",
+            }
+
+        # Steps 0-3: Do NOT approve budget — let IT agents work first
+        if step <= 3:
+            return {
+                "tool_call": "get_project_status",
+                "tool_params": {},
+                "reasoning": "Early steps: monitoring only, no budget actions",
+            }
+
+        # Check inbox for approval requests
+        inbox = obs.inbox or []
+        for msg in inbox:
+            content = msg.content.lower() if hasattr(msg, "content") else ""
+            if "approve" in content or "budget" in content:
+                if budget > 5000:
+                    return {
+                        "tool_call": "approve_budget",
+                        "tool_params": {
+                            "amount": 5000,
+                            "justification": "Approved per manager request",
+                            "requester_agent": "finance_agent",
+                        },
+                        "reasoning": "Budget approval from inbox request",
+                    }
+
+        # Late episode: check deals
+        active_deals = obs.active_deals or []
+        stale_deals = [d for d in active_deals if d.steps_since_contact >= 3]
+        if stale_deals and step >= 5:
             return {
                 "tool_call": "approve_budget",
                 "tool_params": {
-                    "amount": 500.0,
-                    "justification": f"Re-engagement budget for stale deal {deal.id}",
-                    "requester_agent": agent_id,
+                    "amount": 3000,
+                    "justification": f"Deal {stale_deals[0].id} needs budget",
+                    "requester_agent": "finance_agent",
                 },
-                "reasoning": f"Approving budget to re-engage stale deal {deal.id}",
+                "reasoning": "Stale deal needs budget to advance",
             }
 
-        deal = get_negotiation_deal(obs.active_deals)
-        if deal:
-            return {
-                "tool_call": "approve_budget",
-                "tool_params": {
-                    "amount": 1000.0,
-                    "justification": f"Closing budget for negotiation deal {deal.id}",
-                    "requester_agent": agent_id,
-                },
-                "reasoning": f"Approving budget for deal {deal.id} in negotiation",
-            }
-
-        return {"reasoning": "No active deals requiring budget action"}
+        return {
+            "tool_call": "get_project_status",
+            "tool_params": {},
+            "reasoning": "Finance monitoring",
+        }
 
     # ---------------- Project ----------------
     def _project_logic(self, obs, agent_id: str):
@@ -127,59 +157,45 @@ class RulePolicy:
         }
 
     # ---------------- Manager ----------------
-    def _manager_logic(self, obs):
+    def _manager_logic(self, obs: ObservationSchema) -> dict:
         tickets = obs.tickets or []
-        critical_count = sum(1 for t in tickets if t.priority == 1 and not t.resolved)
-        normal_count = sum(1 for t in tickets if t.priority >= 2 and not t.resolved)
+
+        p1_count = sum(1 for t in tickets if t.priority == 1 and not t.resolved)
         sla_breach_risk = sum(
             1 for t in tickets if t.sla_steps_remaining <= 2 and not t.resolved
         )
+        normal_count = sum(1 for t in tickets if t.priority >= 2 and not t.resolved)
         engineers = (
-            getattr(obs.resource_pool, "engineers_available", 3)
-            if obs.resource_pool else 3
+            obs.resource_pool.engineers_available
+            if obs.resource_pool else 2
         )
+        step = obs.step_number
 
-        if sla_breach_risk > 0:
+        # Step 0-2: Emergency coordination
+        if step <= 2 and (sla_breach_risk > 0 or p1_count > 0):
             return {
                 "message_to": "it_tactical_agent",
                 "message_content": (
-                    f"CRITICAL ALERT: {sla_breach_risk} tickets breaching SLA. "
-                    "Prioritize immediately."
+                    f"EMERGENCY: {sla_breach_risk} SLA-critical, "
+                    f"{p1_count} P1 tickets. "
+                    f"Resolve in order of SLA urgency NOW."
                 ),
-                "reasoning": "SLA breach imminent — escalating to tactical",
+                "reasoning": "Early step emergency coordination",
             }
 
-        if critical_count > 2:
-            return {
-                "message_to": "it_tactical_agent",
-                "message_content": (
-                    f"HIGH LOAD: {critical_count} critical tickets. "
-                    "Focus on priority 1 queue."
-                ),
-                "reasoning": "High critical ticket volume",
-            }
-
-        if engineers < 1:
-            return {
-                "message_to": "broadcast",
-                "message_content": (
-                    "RESOURCE CONSTRAINT: No engineers available. "
-                    "Both IT agents pause non-critical work."
-                ),
-                "reasoning": "Resource shortage — broadcasting constraint",
-            }
-
-        if normal_count > 4 and critical_count == 0:
+        # Step 3-5: Stabilization
+        if step <= 5 and normal_count > 2:
             return {
                 "message_to": "it_strategic_agent",
                 "message_content": (
-                    f"BATCH MODE: {normal_count} normal tickets queued. "
-                    "Activate batch processing."
+                    f"STABILIZE: {normal_count} normal tickets. "
+                    f"Clear backlog efficiently."
                 ),
-                "reasoning": "Large normal queue — activating strategic agent",
+                "reasoning": "Mid-episode stabilization",
             }
 
-        if obs.resource_pool and obs.resource_pool.engineers_available > 0:
+        # Resource check — allocate if available
+        if engineers >= 1 and (p1_count > 0 or sla_breach_risk > 0):
             return {
                 "tool_call": "allocate_resource",
                 "tool_params": {
@@ -187,13 +203,21 @@ class RulePolicy:
                     "amount": 1,
                     "requester_agent": "manager_agent",
                 },
-                "reasoning": "Allocating engineer resource for team",
+                "reasoning": "Allocating engineer for urgent tickets",
+            }
+
+        # Check project status in later steps
+        if step >= 5:
+            return {
+                "tool_call": "get_project_status",
+                "tool_params": {},
+                "reasoning": "Late episode project check",
             }
 
         return {
-            "tool_call": "get_project_status",
-            "tool_params": {},
-            "reasoning": "Checking project status",
+            "message_to": "it_tactical_agent",
+            "message_content": "Manager monitoring. Report status.",
+            "reasoning": "Default coordination",
         }
 
     # ---------------- OVERSIGHT (ADVANCED) ----------------

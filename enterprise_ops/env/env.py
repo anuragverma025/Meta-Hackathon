@@ -68,7 +68,7 @@ class EnterpriseOpsEnv(Environment):
         self,
         scenario_path: Optional[str] = None,
         seed: int = 42,
-        max_steps: int = 50,
+        max_steps: int = 30,
         noise_rate: float = 0.08,
         db_path: str = "episodes.db",
     ) -> None:
