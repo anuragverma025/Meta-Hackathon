@@ -255,36 +255,6 @@ def reward_recovery(tool_call_logs: list, failed_attempts: dict) -> float:
 
 # ── Per-agent type rewards ──────────────────────────────────────────────────
 
-def reward_tactical_agent(tool_call_logs: list) -> float:
-    """Higher reward for urgency-driven resolution; bonus for SLA-critical saves."""
-    total = 0.0
-    for log in tool_call_logs:
-        if log.get("agent_id") != "it_tactical_agent":
-            continue
-        if log.get("tool_name") == "resolve_ticket":
-            if log.get("success"):
-                total += 1.5
-                if log.get("sla_steps_remaining", 99) <= 2:
-                    total += 2.0
-            else:
-                total -= 0.5
-    return total
-
-
-def reward_strategic_agent(tool_call_logs: list) -> float:
-    """Throughput reward with batch efficiency bonus for 2+ resolutions per step."""
-    total = 0.0
-    resolved = 0
-    for log in tool_call_logs:
-        if log.get("agent_id") != "it_strategic_agent":
-            continue
-        if log.get("tool_name") == "resolve_ticket" and log.get("success"):
-            total += 1.0
-            resolved += 1
-    if resolved >= 2:
-        total += 0.5 * resolved
-    return total
-
 
 # ── MASTER COMPUTE FUNCTION ─────────────────────────────────────────────────
 # INTERFACE STABLE — trainer.py calls this exact signature
@@ -346,10 +316,6 @@ def compute_reward(
     # -- PRM-based process reward ------------------------------------------
     process = reward_process(tool_call_logs, current_step, episode_length)
 
-    # -- Per-agent type rewards --------------------------------------------
-    tactical = reward_tactical_agent(tool_call_logs)
-    strategic = reward_strategic_agent(tool_call_logs)
-
     # -- Recovery reward ---------------------------------------------------
     recovery = reward_recovery(tool_call_logs, _failed_attempts)
 
@@ -369,7 +335,7 @@ def compute_reward(
     # -- Improvement 2: dynamic weighted components ------------------------
     _update_weights()
     components = {
-        "task_completion":    task_total + tactical + strategic,
+        "task_completion":    task_total,
         "sla_adherence":      sla,
         "coordination_bonus": coord_total,
         "schema_adaptation":  schema,
@@ -408,7 +374,7 @@ def reward_task_completion(step_result, **kwargs) -> float:
     )
 
 
-def reward_coordination(step_result, **kwargs) -> float:
+def reward_coordination(step_result, prev_msgs=None, **kwargs) -> float:
     return sum(
         getattr(r, "coordination_bonus", 0.0) for r in step_result.rewards.values()
     )

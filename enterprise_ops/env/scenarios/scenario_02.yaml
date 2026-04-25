@@ -7,7 +7,7 @@ description: >
 episode_length: 30
 schema_drift_enabled: false
 noise_rate: 0.02
-agents: ['it_tactical_agent', 'it_strategic_agent', 'manager_agent', 'finance_agent', 'oversight_agent']
+agents: ['it_agent', 'manager_agent', 'finance_agent', 'oversight_agent']
 
 resource_pool:
   engineers: 6

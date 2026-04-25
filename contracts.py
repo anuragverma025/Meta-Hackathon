@@ -7,7 +7,6 @@ without coordinating with the full team — these are the integration contract.
 
 from __future__ import annotations
 
-from enum import Enum
 from typing import Any, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
@@ -15,12 +14,6 @@ from pydantic import BaseModel, Field, field_validator
 # ---------------------------------------------------------------------------
 # Core domain models
 # ---------------------------------------------------------------------------
-
-class TicketCategory(str, Enum):
-    URGENT  = "urgent"
-    ROUTINE = "routine"
-    UNKNOWN = "unknown"
-
 
 class TicketSubtask(BaseModel):
     id: str = Field(..., description="e.g. SUBTASK-001")
@@ -39,10 +32,7 @@ class TicketItem(BaseModel):
     sla_steps_remaining: int = Field(..., ge=0, description="Steps until SLA breach")
     resolved: bool = Field(default=False, description="Whether the ticket is resolved")
     resolution_note: Optional[str] = Field(default=None)
-    category: TicketCategory = Field(
-        default=TicketCategory.UNKNOWN,
-        description="Auto-classified based on priority and description",
-    )
+    category: str = Field(default="unknown", description="Auto-classified based on priority and description")
     subtasks: list[TicketSubtask] = Field(
         default_factory=list,
         description="Optional subtasks for complex tickets",
@@ -207,12 +197,8 @@ AGENT_MANAGER     = "manager_agent"
 AGENT_FINANCE     = "finance_agent"
 AGENT_OVERSIGHT   = "oversight_agent"
 
-AGENT_IT_TACTICAL  = "it_tactical_agent"
-AGENT_IT_STRATEGIC = "it_strategic_agent"
-
 ALL_AGENTS = [
-    AGENT_IT_TACTICAL,
-    AGENT_IT_STRATEGIC,
+    AGENT_IT,
     AGENT_MANAGER,
     AGENT_FINANCE,
     AGENT_OVERSIGHT,

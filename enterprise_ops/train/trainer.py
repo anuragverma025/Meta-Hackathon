@@ -59,15 +59,13 @@ except Exception:
 from contracts import (
     ActionSchema,
     ObservationSchema,
-    AGENT_IT_TACTICAL,
-    AGENT_IT_STRATEGIC,
+    AGENT_IT,
     AGENT_MANAGER,
     AGENT_FINANCE,
     AGENT_OVERSIGHT,
 )
 from env.env import EnterpriseOpsEnv
-from agents.it_tactical_agent import ITTacticalAgent
-from agents.it_strategic_agent import ITStrategicAgent
+from agents.it_agent import ITAgent
 from agents.manager_agent import ManagerAgent
 from agents.finance_agent import FinanceAgent
 from agents.oversight_agent import OversightAgent
@@ -84,7 +82,7 @@ from .reward_fn import (
 
 # ── Agent system prompts ───────────────────────────────────────────────────
 _SYSTEM = {
-    AGENT_IT_TACTICAL: (
+    AGENT_IT: (
         "You are the IT Agent in an enterprise operations environment. "
         "Resolve support tickets, manage compute resources, coordinate with the manager. "
         "Available tools: get_tickets, resolve_ticket, allocate_resource, get_project_status. "
@@ -105,7 +103,7 @@ _SYSTEM = {
         '"message_to":null,"message_content":null}'
     ),
 }
-_TRAINABLE_AGENTS = [AGENT_IT_TACTICAL, AGENT_IT_STRATEGIC, AGENT_MANAGER, AGENT_FINANCE]
+_TRAINABLE_AGENTS = [AGENT_IT, AGENT_MANAGER, AGENT_FINANCE]
 
 CSV_FIELDS = [
     "step", "episode_score", "task_completion",
@@ -221,8 +219,7 @@ class EnterpriseOpsTrainer:
 
     def _make_agents(self, env: EnterpriseOpsEnv) -> dict[str, Any]:
         return {
-            AGENT_IT_TACTICAL: ITTacticalAgent(),
-            AGENT_IT_STRATEGIC: ITStrategicAgent(),
+            AGENT_IT: ITAgent(),
             AGENT_MANAGER: ManagerAgent(AGENT_MANAGER),
             AGENT_FINANCE: FinanceAgent(AGENT_FINANCE),
             AGENT_OVERSIGHT: OversightAgent(
@@ -233,7 +230,7 @@ class EnterpriseOpsTrainer:
 
     def _format_prompt(self, obs: ObservationSchema, agent_id: str) -> str:
         """Serialize an observation as a Qwen chat prompt."""
-        system = _SYSTEM.get(agent_id, _SYSTEM[AGENT_IT_TACTICAL])
+        system = _SYSTEM.get(agent_id, _SYSTEM[AGENT_IT])
         obs_data = {
             "step": obs.step_number,
             "tickets": [t.model_dump() for t in obs.tickets[:3]],
@@ -451,9 +448,8 @@ class EnterpriseOpsTrainer:
                         max_steps=config.episode_length,
                     )
                     obs_dict = env.reset()
-                    all_actions = {aid: ActionSchema() for aid in
-                                   [AGENT_IT_TACTICAL, AGENT_IT_STRATEGIC, AGENT_MANAGER, AGENT_FINANCE, AGENT_OVERSIGHT]}
-                    all_actions[AGENT_IT_TACTICAL] = action
+                    all_actions = {aid: ActionSchema() for aid in [AGENT_IT, AGENT_MANAGER, AGENT_FINANCE, AGENT_OVERSIGHT]}
+                    all_actions[AGENT_IT] = action
                     result = env.step(all_actions)
                     rewards.append(float(compute_reward(result)))
                 except Exception:

@@ -44,21 +44,20 @@ from contracts import (
     ObservationSchema,
     RewardComponents,
     StepResult as InnerStepResult,
-    AGENT_IT_TACTICAL,
-    AGENT_IT_STRATEGIC,
+    AGENT_IT,
     AGENT_MANAGER,
     AGENT_FINANCE,
     AGENT_OVERSIGHT,
 )
 from env.env import EnterpriseOpsEnv
-from agents import ITStrategicAgent, ITTacticalAgent, ManagerAgent, FinanceAgent
+from agents import ITAgent, ManagerAgent, FinanceAgent
 from models import EnterpriseAction, EnterpriseObservation
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-ALL_AGENTS = [AGENT_IT_TACTICAL, AGENT_IT_STRATEGIC, AGENT_MANAGER, AGENT_FINANCE, AGENT_OVERSIGHT]
+ALL_AGENTS = [AGENT_IT, AGENT_MANAGER, AGENT_FINANCE, AGENT_OVERSIGHT]
 
 STEP_TIMEOUT_S = 30.0
 LOOP_WINDOW = 3
@@ -215,8 +214,7 @@ class EnterpriseEnvironment(Environment):
 
         # -- Rule-based fallback agents for untrained roles -----------------
         self._fallback_agents: dict[str, Any] = {
-            AGENT_IT_TACTICAL: ITTacticalAgent(),
-            AGENT_IT_STRATEGIC: ITStrategicAgent(),
+            AGENT_IT: ITAgent(),
             AGENT_MANAGER: ManagerAgent(AGENT_MANAGER),
             AGENT_FINANCE: FinanceAgent(AGENT_FINANCE),
         }

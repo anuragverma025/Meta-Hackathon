@@ -38,9 +38,8 @@ from contracts import (
     ResourcePool,
     StepResult,
     TicketItem,
-    AGENT_IT_TACTICAL,
-    AGENT_IT_STRATEGIC,
     ALL_AGENTS,
+    AGENT_IT,
 )
 from env.schema_drift import SchemaDriftEngine
 from env.scenarios.scenario_loader import ScenarioLoader
@@ -345,22 +344,9 @@ class EnterpriseOpsEnv(Environment):
             if h["agent_id"] == agent_id
         ][-5:]
 
-        if agent_id == AGENT_IT_TACTICAL:
+        if agent_id == AGENT_IT:
             all_tickets = wm.get_tickets()
-            filtered = [
-                t for t in all_tickets
-                if t.priority == 1 or t.sla_steps_remaining <= 3
-            ]
-            return ObservationSchema(
-                agent_id=agent_id, inbox=inbox,
-                tickets=filtered, resource_pool=wm.get_resource_pool(),
-                step_number=step, schema_version=schema_v,
-                recent_history=recent,
-            )
-
-        if agent_id == AGENT_IT_STRATEGIC:
-            all_tickets = wm.get_tickets()
-            filtered = [t for t in all_tickets if t.priority >= 2]
+            filtered = list(all_tickets)
             return ObservationSchema(
                 agent_id=agent_id, inbox=inbox,
                 tickets=filtered, resource_pool=wm.get_resource_pool(),

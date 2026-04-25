@@ -4,14 +4,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from enterprise_ops.env.env import EnterpriseOpsEnv
-from enterprise_ops.agents.it_tactical_agent import ITTacticalAgent
-from enterprise_ops.agents.it_strategic_agent import ITStrategicAgent
+from enterprise_ops.agents.it_agent import ITAgent
 from enterprise_ops.agents.manager_agent import ManagerAgent
 from enterprise_ops.agents.finance_agent import FinanceAgent
 from enterprise_ops.agents.oversight_agent import OversightAgent
 from enterprise_ops.contracts import (
-    AGENT_IT_TACTICAL,
-    AGENT_IT_STRATEGIC,
+    AGENT_IT,
     AGENT_MANAGER,
     AGENT_FINANCE,
     AGENT_OVERSIGHT,
@@ -26,8 +24,7 @@ env = EnterpriseOpsEnv(
 )
 
 agents = {
-    AGENT_IT_TACTICAL: ITTacticalAgent(),
-    AGENT_IT_STRATEGIC: ITStrategicAgent(),
+    AGENT_IT: ITAgent(),
     AGENT_MANAGER: ManagerAgent(AGENT_MANAGER),
     AGENT_FINANCE: FinanceAgent(AGENT_FINANCE),
     AGENT_OVERSIGHT: OversightAgent(

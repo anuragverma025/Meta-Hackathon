@@ -31,52 +31,23 @@ class RulePolicy:
 
     # ---------------- IT ----------------
     def _it_logic(self, obs):
-        # Step 0: survey the queue and notify manager so the message bus is exercised
-        if obs.step_number == 0:
-            sla_critical = sum(1 for t in obs.tickets if not t.resolved and t.sla_steps_remaining <= 5)
+        tickets = obs.tickets or []
+        unresolved = [t for t in tickets if not t.resolved]
+        if not unresolved:
             return {
                 "tool_call": "get_tickets",
                 "tool_params": {},
-                "message_to": "manager_agent",
-                "message_content": (
-                    f"IT agent online at step {obs.step_number}. "
-                    f"Tickets in queue: {len(obs.tickets)}. "
-                    f"SLA-critical (<=5 steps): {sla_critical}."
-                ),
-                "reasoning": "Initial ticket survey + manager notification",
+                "reasoning": "No tickets visible, scanning"
             }
-
-        ticket = get_urgent_ticket(obs.tickets)
-        if ticket:
-            return {
-                "tool_call": "resolve_ticket",
-                "tool_params": {
-                    "ticket_id": ticket.id,
-                    "resolution_note": f"Resolved by IT agent at step {obs.step_number}",
-                },
-                "reasoning": f"Resolving urgent ticket {ticket.id}",
-            }
-
-        # Resolve any remaining unresolved ticket
-        unresolved = sorted(
-            [t for t in obs.tickets if not t.resolved],
-            key=lambda t: (t.priority, t.sla_steps_remaining),
-        )
-        if unresolved:
-            t = unresolved[0]
-            return {
-                "tool_call": "resolve_ticket",
-                "tool_params": {
-                    "ticket_id": t.id,
-                    "resolution_note": f"Resolved by IT agent at step {obs.step_number}",
-                },
-                "reasoning": f"Resolving ticket {t.id}",
-            }
-
+        target = min(unresolved,
+                    key=lambda t: (t.priority, t.sla_steps_remaining))
         return {
-            "tool_call": "get_tickets",
-            "tool_params": {},
-            "reasoning": "All tickets resolved — monitoring queue",
+            "tool_call": "resolve_ticket",
+            "tool_params": {
+                "ticket_id": target.id,
+                "resolution_note": f"Resolving {target.id}"
+            },
+            "reasoning": f"Resolving P{target.priority} ticket"
         }
 
     # ---------------- Finance ----------------
@@ -174,7 +145,7 @@ class RulePolicy:
         # Step 0-2: Emergency coordination
         if step <= 2 and (sla_breach_risk > 0 or p1_count > 0):
             return {
-                "message_to": "it_tactical_agent",
+                "message_to": "it_agent",
                 "message_content": (
                     f"EMERGENCY: {sla_breach_risk} SLA-critical, "
                     f"{p1_count} P1 tickets. "
@@ -186,7 +157,7 @@ class RulePolicy:
         # Step 3-5: Stabilization
         if step <= 5 and normal_count > 2:
             return {
-                "message_to": "it_strategic_agent",
+                "message_to": "it_agent",
                 "message_content": (
                     f"STABILIZE: {normal_count} normal tickets. "
                     f"Clear backlog efficiently."
@@ -215,7 +186,7 @@ class RulePolicy:
             }
 
         return {
-            "message_to": "it_tactical_agent",
+            "message_to": "it_agent",
             "message_content": "Manager monitoring. Report status.",
             "reasoning": "Default coordination",
         }

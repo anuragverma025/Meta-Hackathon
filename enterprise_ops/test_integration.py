@@ -20,8 +20,7 @@ from contracts import (
     RewardComponents,
     StepResult,
     TicketItem,
-    AGENT_IT_TACTICAL,
-    AGENT_IT_STRATEGIC,
+    AGENT_IT,
     AGENT_MANAGER,
     AGENT_FINANCE,
     AGENT_OVERSIGHT,
@@ -31,14 +30,14 @@ from contracts import (
 from env.env import EnterpriseOpsEnv
 
 # ── Agents ─────────────────────────────────────────────────────────────────
-from agents import ITTacticalAgent, ITStrategicAgent, ManagerAgent, FinanceAgent, OversightAgent
+from agents import ITAgent, ManagerAgent, FinanceAgent, OversightAgent
 
 # ── Config ─────────────────────────────────────────────────────────────────
 SCENARIO = str(Path(__file__).parent / "env" / "scenarios" / "scenario_01.yaml")
 SEED     = 42
 STEPS    = 5
 
-ALL_AGENTS = [AGENT_IT_TACTICAL, AGENT_IT_STRATEGIC, AGENT_MANAGER, AGENT_FINANCE, AGENT_OVERSIGHT]
+ALL_AGENTS = [AGENT_IT, AGENT_MANAGER, AGENT_FINANCE, AGENT_OVERSIGHT]
 
 # ── Tiny assertion helper ───────────────────────────────────────────────────
 _failures: list[str] = []
@@ -71,7 +70,7 @@ def main() -> None:
     obs: dict[str, ObservationSchema] = env.reset()
 
     check(isinstance(obs, dict), "reset() returns dict")
-    check(len(obs) == 5, f"reset() dict has 5 agents (got {len(obs)})")
+    check(len(obs) == 4, f"reset() dict has 4 agents (got {len(obs)})")
     for aid in ALL_AGENTS:
         check(aid in obs, f"obs has key '{aid}'")
         check(isinstance(obs.get(aid), ObservationSchema),
@@ -85,17 +84,16 @@ def main() -> None:
             check(isinstance(o.schema_version, int),
                   f"obs['{aid}'].schema_version is int (={o.schema_version})")
 
-    # ── 4. Initialise all 5 agents ──────────────────────────────────────────
+    # ── 4. Initialise all 4 agents ──────────────────────────────────────────
     print("\n[4] Initialise agents")
-    it_tactical_agent  = ITTacticalAgent()
-    it_strategic_agent = ITStrategicAgent()
+    it_agent           = ITAgent()
     manager_agent      = ManagerAgent(AGENT_MANAGER)
     finance_agent      = FinanceAgent(AGENT_FINANCE)
     oversight_agent    = OversightAgent(
         drift_engine=env._drift_engine,
         tool_registry=env._tool_registry,
     )
-    check(True, "All 5 agents instantiated without error")
+    check(True, "All 4 agents instantiated without error")
 
     # ── 5. 5-step loop ─────────────────────────────────────────────────────
     print("\n[5] Running 5 steps")
@@ -109,8 +107,7 @@ def main() -> None:
 
         # Each agent acts on its current observation
         actions: dict[str, ActionSchema] = {
-            AGENT_IT_TACTICAL:  it_tactical_agent.act(obs[AGENT_IT_TACTICAL]),
-            AGENT_IT_STRATEGIC: it_strategic_agent.act(obs[AGENT_IT_STRATEGIC]),
+            AGENT_IT:           it_agent.act(obs[AGENT_IT]),
             AGENT_MANAGER:      manager_agent.act(obs[AGENT_MANAGER]),
             AGENT_FINANCE:      finance_agent.act(obs[AGENT_FINANCE]),
             AGENT_OVERSIGHT:    ActionSchema(),   # oversight monitors via env internals
@@ -120,12 +117,12 @@ def main() -> None:
             check(isinstance(act, ActionSchema),
                   f"agent '{aid}' returned ActionSchema")
 
-        # ── Step 1 specific: IT_TACTICAL targets urgent/P1 tickets ─────────
+        # ── Step 1 specific: IT targets urgent/P1 tickets ─────────
         if step_idx == 1:
-            tact_act = actions[AGENT_IT_TACTICAL]
+            tact_act = actions[AGENT_IT]
             check(
                 tact_act.tool_call in ("resolve_ticket", "get_tickets"),
-                f"Step 1: IT_TACTICAL calls resolve_ticket or get_tickets "
+                f"Step 1: IT calls resolve_ticket or get_tickets "
                 f"(got {tact_act.tool_call!r})",
             )
 
@@ -149,10 +146,10 @@ def main() -> None:
                   f"rewards['{aid}'].total() is float (={total})")
             cumulative[aid] += total
 
-        # ── Step 1 post-step: verify IT_TACTICAL tool result ───────────────
+        # ── Step 1 post-step: verify IT tool result ───────────────
         if step_idx == 1:
-            raw = result.info.get("tool_results", {}).get(AGENT_IT_TACTICAL)
-            tact_act = actions[AGENT_IT_TACTICAL]
+            raw = result.info.get("tool_results", {}).get(AGENT_IT)
+            tact_act = actions[AGENT_IT]
             if raw and tact_act.tool_call == "get_tickets" and "tickets" in raw:
                 try:
                     items = [TicketItem(**t) for t in raw["tickets"]]
@@ -164,18 +161,18 @@ def main() -> None:
             elif raw and tact_act.tool_call == "resolve_ticket":
                 check(
                     raw.get("resolved") is True or raw.get("ticket_id") is not None,
-                    f"Step 1: IT_TACTICAL resolve_ticket result valid (raw={raw!r})",
+                    f"Step 1: IT resolve_ticket result valid (raw={raw!r})",
                 )
             else:
                 check(False,
-                      f"Step 1: unexpected IT_TACTICAL tool result (raw={raw!r})")
+                      f"Step 1: unexpected IT tool result (raw={raw!r})")
 
         # ── Step 2: Manager inbox is accessible ────────────────────────────
         if step_idx == 2:
             mgr_obs = result.observations[AGENT_MANAGER]
             it_msgs = [
                 m for m in mgr_obs.inbox
-                if m.from_agent in (AGENT_IT_TACTICAL, AGENT_IT_STRATEGIC)
+                if m.from_agent in (AGENT_IT,)
             ]
             step2_manager_inbox_len = len(mgr_obs.inbox)
             check(
@@ -198,8 +195,7 @@ def main() -> None:
     any_nonzero = any(v != 0.0 for v in cumulative.values())
     check(any_nonzero,
           f"At least one agent earned non-zero cumulative reward "
-          f"(TACT={cumulative[AGENT_IT_TACTICAL]:+.1f}, "
-          f"STRAT={cumulative[AGENT_IT_STRATEGIC]:+.1f}, "
+          f"(IT={cumulative[AGENT_IT]:+.1f}, "
           f"MGR={cumulative[AGENT_MANAGER]:+.1f}, "
           f"FIN={cumulative[AGENT_FINANCE]:+.1f}, "
           f"OVR={cumulative[AGENT_OVERSIGHT]:+.1f})")

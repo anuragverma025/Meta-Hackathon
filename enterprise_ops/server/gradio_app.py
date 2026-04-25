@@ -21,8 +21,7 @@ SCENARIO_CHOICES = [
 ]
 
 AGENT_CHOICES = [
-    ("IT Tactical Agent", "it_tactical_agent"),
-    ("IT Strategic Agent", "it_strategic_agent"),
+    ("IT Agent", "it_agent"),
     ("Manager Agent", "manager_agent"),
     ("Finance Agent", "finance_agent"),
     ("Oversight Agent", "oversight_agent"),
@@ -134,7 +133,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), title="EnterpriseOps Arena - Meta P
             gr.Markdown("## Step Panel")
             agent_id = gr.Dropdown(
                 choices=AGENT_CHOICES,
-                value="it_tactical_agent",
+                value="it_agent",
                 label="Agent",
             )
             tool_call = gr.Dropdown(

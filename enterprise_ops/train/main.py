@@ -45,8 +45,8 @@ def run_single_episode(scenario: str = "scenario_01") -> float:
         Sum of all per-step, per-agent rewards over the episode.
     """
     from env.env import EnterpriseOpsEnv
-    from agents import ITTacticalAgent, ITStrategicAgent, ManagerAgent, FinanceAgent, OversightAgent
-    from contracts import AGENT_IT_TACTICAL, AGENT_IT_STRATEGIC, AGENT_MANAGER, AGENT_FINANCE, AGENT_OVERSIGHT
+    from agents import ITAgent, ManagerAgent, FinanceAgent, OversightAgent
+    from contracts import AGENT_IT, AGENT_MANAGER, AGENT_FINANCE, AGENT_OVERSIGHT
 
     scenario_path: str
     if scenario.endswith(".yaml"):
@@ -57,8 +57,7 @@ def run_single_episode(scenario: str = "scenario_01") -> float:
 
     env = EnterpriseOpsEnv(scenario_path=scenario_path, seed=42)
     agents = {
-        AGENT_IT_TACTICAL:  ITTacticalAgent(),
-        AGENT_IT_STRATEGIC: ITStrategicAgent(),
+        AGENT_IT: ITAgent(),
         AGENT_MANAGER:  ManagerAgent(AGENT_MANAGER),
         AGENT_FINANCE:  FinanceAgent(AGENT_FINANCE),
         AGENT_OVERSIGHT: OversightAgent(
