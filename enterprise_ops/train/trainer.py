@@ -281,7 +281,7 @@ class EnterpriseOpsTrainer:
 
             total_task += reward_task_completion(result)
             total_sla += reward_sla_adherence(result)
-            total_coord += reward_coordination(result, prev_msgs)
+            total_coord += reward_coordination(result)
             total_halluc += penalty_hallucination(result)
 
             for aid, act in actions.items():
