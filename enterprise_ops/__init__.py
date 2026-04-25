@@ -16,6 +16,11 @@ _PKG_ROOT = Path(__file__).resolve().parent
 if str(_PKG_ROOT) not in sys.path:
     sys.path.insert(0, str(_PKG_ROOT))
 
+# agents/ uses bare imports (e.g. "from base_agent import BaseAgent")
+_AGENTS_ROOT = _PKG_ROOT / "agents"
+if str(_AGENTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_AGENTS_ROOT))
+
 try:
     from .models import EnterpriseAction, EnterpriseObservation
     from .client import EnterpriseClient

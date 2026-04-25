@@ -28,12 +28,12 @@ class TrainingConfig:
     # ── GRPO training ─────────────────────────────────────────────────────
     max_steps: int = 200
     episode_length: int = 8            # max steps per env episode
-    grpo_num_generations: int = 4      # G — completions per prompt
+    grpo_num_generations: int = 6      # G — completions per prompt
     per_device_train_batch_size: int = 1
     gradient_accumulation_steps: int = 1
     max_new_tokens: int = 256
     max_prompt_length: int = 512
-    learning_rate: float = 5e-6
+    learning_rate: float = 5e-5
     warmup_ratio: float = 0.1
     lr_scheduler_type: str = "cosine"
     weight_decay: float = 0.1
