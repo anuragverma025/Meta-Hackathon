@@ -32,10 +32,13 @@ if str(_ROOT) not in sys.path:
 
 # ── Optional heavy deps (GPU-only) ────────────────────────────────────────
 try:
+    import unsloth  # type: ignore[import]
     from unsloth import FastLanguageModel  # type: ignore[import]
     HAS_UNSLOTH = True
-except Exception:
+    print("[Trainer] Unsloth loaded")
+except Exception as e:
     HAS_UNSLOTH = False
+    print(f"[Trainer] Unsloth not found: {e}")
 
 try:
     from trl import GRPOConfig, GRPOTrainer  # type: ignore[import]
@@ -218,11 +221,14 @@ class EnterpriseOpsTrainer:
 
     def _make_agents(self, env: EnterpriseOpsEnv) -> dict[str, Any]:
         return {
-            AGENT_IT_TACTICAL: ITTacticalAgent(AGENT_IT_TACTICAL),
-            AGENT_IT_STRATEGIC: ITStrategicAgent(AGENT_IT_STRATEGIC),
+            AGENT_IT_TACTICAL: ITTacticalAgent(),
+            AGENT_IT_STRATEGIC: ITStrategicAgent(),
             AGENT_MANAGER: ManagerAgent(AGENT_MANAGER),
             AGENT_FINANCE: FinanceAgent(AGENT_FINANCE),
-            AGENT_OVERSIGHT: OversightAgent(AGENT_OVERSIGHT),
+            AGENT_OVERSIGHT: OversightAgent(
+                drift_engine=env._drift_engine,
+                tool_registry=env._tool_registry,
+            ),
         }
 
     def _format_prompt(self, obs: ObservationSchema, agent_id: str) -> str:
