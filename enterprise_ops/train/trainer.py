@@ -53,7 +53,7 @@ except Exception:
     HAS_DATASETS = False
 
 # ── Enterprise imports ─────────────────────────────────────────────────────
-from enterprise_ops.contracts import (
+from contracts import (
     ActionSchema,
     ObservationSchema,
     AGENT_IT_TACTICAL,
@@ -62,12 +62,12 @@ from enterprise_ops.contracts import (
     AGENT_FINANCE,
     AGENT_OVERSIGHT,
 )
-from enterprise_ops.env.env import EnterpriseOpsEnv
-from enterprise_ops.agents.it_tactical_agent import ITTacticalAgent
-from enterprise_ops.agents.it_strategic_agent import ITStrategicAgent
-from enterprise_ops.agents.manager_agent import ManagerAgent
-from enterprise_ops.agents.finance_agent import FinanceAgent
-from enterprise_ops.agents.oversight_agent import OversightAgent
+from env.env import EnterpriseOpsEnv
+from agents.it_tactical_agent import ITTacticalAgent
+from agents.it_strategic_agent import ITStrategicAgent
+from agents.manager_agent import ManagerAgent
+from agents.finance_agent import FinanceAgent
+from agents.oversight_agent import OversightAgent
 
 from .config import TrainingConfig, EpisodeBufferConfig
 from .episode_buffer import EpisodeBuffer, Transition
@@ -222,10 +222,7 @@ class EnterpriseOpsTrainer:
             AGENT_IT_STRATEGIC: ITStrategicAgent(AGENT_IT_STRATEGIC),
             AGENT_MANAGER: ManagerAgent(AGENT_MANAGER),
             AGENT_FINANCE: FinanceAgent(AGENT_FINANCE),
-            AGENT_OVERSIGHT: OversightAgent(
-                drift_engine=env._drift_engine,
-                tool_registry=env._tool_registry,
-            ),
+            AGENT_OVERSIGHT: OversightAgent(AGENT_OVERSIGHT),
         }
 
     def _format_prompt(self, obs: ObservationSchema, agent_id: str) -> str:
@@ -530,7 +527,7 @@ class EnterpriseOpsTrainer:
             per_device_train_batch_size=self.config.per_device_train_batch_size,
             gradient_accumulation_steps=self.config.gradient_accumulation_steps,
             max_prompt_length=self.config.max_prompt_length,
-            max_new_tokens=self.config.max_new_tokens,
+            max_completion_length=self.config.max_new_tokens,
             learning_rate=self.config.learning_rate,
             warmup_ratio=self.config.warmup_ratio,
             lr_scheduler_type=self.config.lr_scheduler_type,

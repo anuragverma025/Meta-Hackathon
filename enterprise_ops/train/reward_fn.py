@@ -400,3 +400,21 @@ def compute_reward(
     _episode_scores.append(total)
 
     return float(total)
+
+
+def reward_task_completion(step_result, **kwargs) -> float:
+    return sum(
+        getattr(r, "task_completion", 0.0) for r in step_result.rewards.values()
+    )
+
+
+def reward_coordination(step_result, **kwargs) -> float:
+    return sum(
+        getattr(r, "coordination_bonus", 0.0) for r in step_result.rewards.values()
+    )
+
+
+def penalty_hallucination(step_result, **kwargs) -> float:
+    return sum(
+        getattr(r, "hallucination_penalty", 0.0) for r in step_result.rewards.values()
+    )

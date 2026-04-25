@@ -58,11 +58,18 @@ class OversightAgent:
 
     def __init__(
         self,
-        drift_engine: Any,
-        tool_registry: Any,
+        drift_engine: Any = None,
+        tool_registry: Any = None,
         loop_window: int = 5,
         loop_threshold: int = 3,
     ) -> None:
+        # Back-compat: some callers pass an agent_id (e.g. "oversight_agent")
+        # in the first positional slot. In that case, OversightAgent runs in
+        # no-op mode (no drift/tool registry available).
+        if isinstance(drift_engine, str) and tool_registry is None:
+            drift_engine = None
+            tool_registry = None
+
         self._drift = drift_engine
         self._tr = tool_registry
         self._loop_window = loop_window
@@ -78,6 +85,9 @@ class OversightAgent:
 
         Each flag: {agent_id, flag_type, evidence, step_number, reward_delta}
         """
+        if self._drift is None or self._tr is None:
+            return []
+
         flags: list[dict[str, Any]] = []
 
         for log in tool_call_logs:
