@@ -68,6 +68,16 @@ _TOOL_SCHEMAS: dict[str, dict[str, Any]] = {
         },
         "additionalProperties": False,
     },
+    "resolve_subtask": {
+        "type": "object",
+        "required": ["ticket_id", "subtask_id"],
+        "properties": {
+            "ticket_id":       {"type": "string"},
+            "subtask_id":      {"type": "string"},
+            "resolution_note": {"type": ["string", "null"]},
+        },
+        "additionalProperties": False,
+    },
 }
 
 _DDL = """
@@ -222,6 +232,7 @@ class ToolRegistry:
             "allocate_resource":  self._allocate_resource,
             "approve_budget":     self._approve_budget,
             "get_project_status": self._get_project_status,
+            "resolve_subtask":    self._resolve_subtask,
         }
         if tool_name not in dispatch:
             result = {"error": f"Unknown tool '{tool_name}'", "transient": False}
@@ -408,6 +419,68 @@ class ToolRegistry:
 
         if self._drift is None:
             self._log(agent_id, "get_project_status", params, result, success=True, noise_triggered=False)
+        return result
+
+    # ------------------------------------------------------------------
+    # Tool 6 — resolve_subtask
+    # ------------------------------------------------------------------
+
+    def _resolve_subtask(self, params: dict[str, Any], agent_id: str) -> dict[str, Any]:
+        ticket_id: str = params["ticket_id"]
+        subtask_id: str = params["subtask_id"]
+
+        tickets = {t.id: t for t in self._wm.get_tickets()}
+        if ticket_id not in tickets:
+            result = {"success": False, "error": f"Ticket {ticket_id} not found", "transient": False}
+            self._log(agent_id, "resolve_subtask", params, result, success=False, noise_triggered=False)
+            return result
+
+        ticket = tickets[ticket_id]
+        target = next((s for s in ticket.subtasks if s.id == subtask_id), None)
+        if target is None:
+            result = {"success": False, "error": f"Subtask {subtask_id} not found", "transient": False}
+            self._log(agent_id, "resolve_subtask", params, result, success=False, noise_triggered=False)
+            return result
+
+        # Enforce sequential ordering — cannot skip steps
+        if target.sequence > 1:
+            prev = next((s for s in ticket.subtasks if s.sequence == target.sequence - 1), None)
+            if prev and prev.status != "completed":
+                result = {
+                    "success": False,
+                    "error": f"Must complete subtask sequence {target.sequence - 1} first",
+                    "transient": False,
+                }
+                self._log(agent_id, "resolve_subtask", params, result, success=False, noise_triggered=False)
+                return result
+
+        updated_subtasks = [
+            {**s.model_dump(), "status": "completed"} if s.id == subtask_id else s.model_dump()
+            for s in ticket.subtasks
+        ]
+        all_done = all(s["status"] == "completed" for s in updated_subtasks)
+
+        ticket_update: dict[str, Any] = {"id": ticket_id, "subtasks": updated_subtasks}
+        if all_done:
+            ticket_update["resolved"] = True
+
+        action = ActionSchema(tool_call="resolve_subtask", tool_params=params)
+        self._wm.apply_action(
+            agent_id=agent_id, action=action,
+            state_delta={"ticket_update": ticket_update},
+            reason=f"{agent_id} resolved subtask {subtask_id} of ticket {ticket_id}",
+        )
+
+        result = {
+            "success": True,
+            "subtask_id": subtask_id,
+            "ticket_id": ticket_id,
+            "ticket_fully_resolved": all_done,
+            "message": f"Subtask {subtask_id} completed",
+            "schema_version": self._wm.schema_version,
+        }
+        if self._drift is None:
+            self._log(agent_id, "resolve_subtask", params, result, success=True, noise_triggered=False)
         return result
 
     # ------------------------------------------------------------------

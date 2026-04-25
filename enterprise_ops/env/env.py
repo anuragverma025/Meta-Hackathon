@@ -29,6 +29,7 @@ from openenv.core import Environment
 
 from contracts import (
     ActionSchema,
+    ActionHistoryItem,
     DealItem,
     MessageSchema,
     ObservationSchema,
@@ -37,13 +38,16 @@ from contracts import (
     ResourcePool,
     StepResult,
     TicketItem,
+    AGENT_IT_TACTICAL,
+    AGENT_IT_STRATEGIC,
+    ALL_AGENTS,
 )
 from env.schema_drift import SchemaDriftEngine
 from env.scenarios.scenario_loader import ScenarioLoader
 from env.tools import ToolRegistry
 from env.world_model import WorldModel
 
-AGENT_IDS = ["it_agent", "manager_agent", "finance_agent", "oversight_agent"]
+AGENT_IDS = list(ALL_AGENTS)
 
 
 class EnterpriseOpsEnv(Environment):
@@ -97,6 +101,9 @@ class EnterpriseOpsEnv(Environment):
 
         self._oversight_agent: Any = None
 
+        self.action_history: list = []
+        self.failed_attempts: dict = {}
+
         print(f"[EnterpriseOpsEnv] Initialised | seed={seed} | db={db_path}")
 
     # ------------------------------------------------------------------
@@ -149,6 +156,8 @@ class EnterpriseOpsEnv(Environment):
         self._done             = False
         self._message_bus      = {aid: [] for aid in AGENT_IDS}
         self._pending_messages = {aid: [] for aid in AGENT_IDS}
+        self.action_history    = []
+        self.failed_attempts   = {}
 
         self._boot_oversight_agent()
 
@@ -220,6 +229,24 @@ class EnterpriseOpsEnv(Environment):
 
             if act.message_to and act.message_content:
                 self._queue_message(agent_id, act.message_to, act.message_content, self._step_count)
+
+        # ── 4b. Record action history and failure tracking ─────────────
+        for _aid, act in actions.items():
+            tool_result = tool_results.get(_aid, {})
+            self.action_history.append({
+                "step":        self._step_count,
+                "agent_id":    _aid,
+                "tool_call":   act.tool_call,
+                "tool_params": act.tool_params,
+                "success":     tool_result.get("success", False),
+                "error":       tool_result.get("error"),
+                "retry_count": self.failed_attempts.get(
+                    act.tool_params.get("ticket_id", ""), 0),
+                "reward_delta": 0.0,
+            })
+            if not tool_result.get("success") and act.tool_call == "resolve_ticket":
+                tid = act.tool_params.get("ticket_id", "")
+                self.failed_attempts[tid] = self.failed_attempts.get(tid, 0) + 1
 
         # ── 5. Collect logs BEFORE advance so step number matches ───────
         step_logs = self._tool_registry.get_current_step_logs()
@@ -312,12 +339,33 @@ class EnterpriseOpsEnv(Environment):
         wm       = self._world_model
         step     = wm.step
         schema_v = self._drift_engine.schema_version
+        recent   = [
+            ActionHistoryItem(**h)
+            for h in self.action_history
+            if h["agent_id"] == agent_id
+        ][-5:]
 
-        if agent_id == "it_agent":
+        if agent_id == AGENT_IT_TACTICAL:
+            all_tickets = wm.get_tickets()
+            filtered = [
+                t for t in all_tickets
+                if t.priority == 1 or t.sla_steps_remaining <= 3
+            ]
             return ObservationSchema(
                 agent_id=agent_id, inbox=inbox,
-                tickets=wm.get_tickets(), resource_pool=wm.get_resource_pool(),
+                tickets=filtered, resource_pool=wm.get_resource_pool(),
                 step_number=step, schema_version=schema_v,
+                recent_history=recent,
+            )
+
+        if agent_id == AGENT_IT_STRATEGIC:
+            all_tickets = wm.get_tickets()
+            filtered = [t for t in all_tickets if t.priority >= 2]
+            return ObservationSchema(
+                agent_id=agent_id, inbox=inbox,
+                tickets=filtered, resource_pool=wm.get_resource_pool(),
+                step_number=step, schema_version=schema_v,
+                recent_history=recent,
             )
 
         if agent_id == "manager_agent":
@@ -328,6 +376,7 @@ class EnterpriseOpsEnv(Environment):
                 active_deals=wm.get_deals(),
                 tickets=[t for t in wm.get_tickets() if not t.resolved],
                 step_number=step, schema_version=schema_v,
+                recent_history=recent,
             )
 
         if agent_id == "finance_agent":
@@ -336,12 +385,14 @@ class EnterpriseOpsEnv(Environment):
                 resource_pool=wm.get_resource_pool(),
                 active_deals=wm.get_deals(),
                 step_number=step, schema_version=schema_v,
+                recent_history=recent,
             )
 
         # oversight_agent
         return ObservationSchema(
             agent_id=agent_id, inbox=inbox,
             step_number=step, schema_version=schema_v,
+            recent_history=recent,
         )
 
     # ------------------------------------------------------------------

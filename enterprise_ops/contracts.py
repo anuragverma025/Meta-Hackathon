@@ -7,6 +7,7 @@ without coordinating with the full team — these are the integration contract.
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
@@ -14,6 +15,20 @@ from pydantic import BaseModel, Field, field_validator
 # ---------------------------------------------------------------------------
 # Core domain models
 # ---------------------------------------------------------------------------
+
+class TicketCategory(str, Enum):
+    URGENT  = "urgent"
+    ROUTINE = "routine"
+    UNKNOWN = "unknown"
+
+
+class TicketSubtask(BaseModel):
+    id: str = Field(..., description="e.g. SUBTASK-001")
+    ticket_id: str
+    sequence: int = Field(..., description="Must complete in order: 1, 2, 3")
+    description: str
+    status: Literal["pending", "in_progress", "completed"] = "pending"
+
 
 class TicketItem(BaseModel):
     """An IT support ticket in the system."""
@@ -24,6 +39,14 @@ class TicketItem(BaseModel):
     sla_steps_remaining: int = Field(..., ge=0, description="Steps until SLA breach")
     resolved: bool = Field(default=False, description="Whether the ticket is resolved")
     resolution_note: Optional[str] = Field(default=None)
+    category: TicketCategory = Field(
+        default=TicketCategory.UNKNOWN,
+        description="Auto-classified based on priority and description",
+    )
+    subtasks: list[TicketSubtask] = Field(
+        default_factory=list,
+        description="Optional subtasks for complex tickets",
+    )
 
 
 class DealItem(BaseModel):
@@ -71,6 +94,17 @@ class MessageSchema(BaseModel):
     priority: int = Field(default=2, ge=1, le=3, description="1=urgent, 2=normal, 3=low")
 
 
+class ActionHistoryItem(BaseModel):
+    step: int
+    agent_id: str
+    tool_call: Optional[str] = None
+    tool_params: dict = Field(default_factory=dict)
+    success: bool = False
+    error: Optional[str] = None
+    retry_count: int = 0
+    reward_delta: float = 0.0
+
+
 # ---------------------------------------------------------------------------
 # Observation & action schemas — INTERFACE STABLE (Anurag imports these)
 # ---------------------------------------------------------------------------
@@ -89,6 +123,10 @@ class ObservationSchema(BaseModel):
     project_tasks: list[ProjectTask] = Field(default_factory=list)
     step_number: int = Field(..., ge=0)
     schema_version: int = Field(default=1, description="Current drift version — agents must track this")
+    recent_history: list[ActionHistoryItem] = Field(
+        default_factory=list,
+        description="Last 5 actions by this agent",
+    )
 
 
 class ActionSchema(BaseModel):
@@ -164,7 +202,18 @@ class StepResult(BaseModel):
 # Agent ID constants — canonical identifiers used by env and all agents
 # ---------------------------------------------------------------------------
 
-AGENT_IT       = "it_agent"
-AGENT_MANAGER  = "manager_agent"
-AGENT_FINANCE  = "finance_agent"
-AGENT_OVERSIGHT = "oversight_agent"
+AGENT_IT          = "it_agent"
+AGENT_MANAGER     = "manager_agent"
+AGENT_FINANCE     = "finance_agent"
+AGENT_OVERSIGHT   = "oversight_agent"
+
+AGENT_IT_TACTICAL  = "it_tactical_agent"
+AGENT_IT_STRATEGIC = "it_strategic_agent"
+
+ALL_AGENTS = [
+    AGENT_IT_TACTICAL,
+    AGENT_IT_STRATEGIC,
+    AGENT_MANAGER,
+    AGENT_FINANCE,
+    AGENT_OVERSIGHT,
+]
