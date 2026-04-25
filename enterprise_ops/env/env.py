@@ -40,13 +40,14 @@ from contracts import (
     TicketItem,
     AGENT_IT_TACTICAL,
     AGENT_IT_STRATEGIC,
+    ALL_AGENTS,
 )
 from env.schema_drift import SchemaDriftEngine
 from env.scenarios.scenario_loader import ScenarioLoader
 from env.tools import ToolRegistry
 from env.world_model import WorldModel
 
-AGENT_IDS = ["it_agent", "manager_agent", "finance_agent", "oversight_agent"]
+AGENT_IDS = list(ALL_AGENTS)
 
 
 class EnterpriseOpsEnv(Environment):
@@ -343,14 +344,6 @@ class EnterpriseOpsEnv(Environment):
             for h in self.action_history
             if h["agent_id"] == agent_id
         ][-5:]
-
-        if agent_id == "it_agent":
-            return ObservationSchema(
-                agent_id=agent_id, inbox=inbox,
-                tickets=wm.get_tickets(), resource_pool=wm.get_resource_pool(),
-                step_number=step, schema_version=schema_v,
-                recent_history=recent,
-            )
 
         if agent_id == AGENT_IT_TACTICAL:
             all_tickets = wm.get_tickets()
