@@ -10,7 +10,7 @@ import gradio as gr
 import requests
 
 BASE_URL = "http://localhost:7860"
-TIMEOUT = 45
+TIMEOUT = 300
 
 _SC_DIR = Path(__file__).resolve().parent
 _REWARD_IMAGE = _SC_DIR / "reward_curves.png"
