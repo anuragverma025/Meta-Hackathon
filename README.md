@@ -47,6 +47,7 @@ we are training agents to close.
 
 ## Training Results
 ![Reward curves](reward_curves.png)
+![Loss curves](loss_curves.png)
 
 | Metric | Value |
 |--------|-------|

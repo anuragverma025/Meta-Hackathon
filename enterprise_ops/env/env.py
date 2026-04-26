@@ -400,7 +400,16 @@ class EnterpriseOpsEnv(Environment):
             return self.reward_fn(agent_id, action, tool_result, world_state)
 
         rc = RewardComponents()
-        if action is None or not tool_result:
+        if action is None:
+            return rc
+
+        if action.message_to and action.message_content:
+            rc.coordination_bonus += 0.5
+
+        if not tool_result:
+            for ticket in self._world_model.get_tickets():
+                if not ticket.resolved and ticket.sla_steps_remaining == 0:
+                    rc.sla_breach_penalty -= 8.0
             return rc
 
         if action.tool_call == "resolve_ticket" and tool_result.get("resolved"):
@@ -409,6 +418,12 @@ class EnterpriseOpsEnv(Environment):
             tid = action.tool_params.get("ticket_id", "")
             if tid in tickets:
                 rc.sla_adherence += max(0.0, tickets[tid].sla_steps_remaining * 0.5)
+
+        # Reward successful ticket discovery with a small shaping bonus.
+        # This prevents zero-reward plateaus when agents are scanning before acting.
+        if action.tool_call == "get_tickets" and "error" not in tool_result:
+            count = float(tool_result.get("count", 0) or 0)
+            rc.task_completion += min(1.0, 0.2 + 0.1 * count)
 
         if action.tool_call == "get_project_status" and not tool_result.get("error"):
             rc.task_completion += 1.0

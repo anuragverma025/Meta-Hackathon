@@ -170,6 +170,8 @@ class ToolRegistry:
         self._noise_rate = noise_rate
         self._rng = random.Random(seed + 1)
         self._drift: Any = drift_engine
+        self._current_step_num: int = 0
+        self._current_step_logs: list[dict[str, Any]] = []
         self._init_db()
 
     def _init_db(self) -> None:
@@ -192,12 +194,28 @@ class ToolRegistry:
 
     def _log(self, agent_id: str, tool_name: str, params: dict[str, Any],
              result: dict[str, Any], success: bool, noise_triggered: bool) -> None:
+        step_number = self._wm.step
+        if step_number != self._current_step_num:
+            self._current_step_num = step_number
+            self._current_step_logs = []
+
+        self._current_step_logs.append({
+            "step_number": step_number,
+            "agent_id": agent_id,
+            "tool_name": tool_name,
+            "params": params,
+            "result": result,
+            "success": bool(success),
+            "noise_triggered": bool(noise_triggered),
+            "schema_version": self._wm.schema_version,
+        })
+
         with self._conn() as conn:
             conn.execute(
                 "INSERT INTO tool_call_log "
                 "(step_number, agent_id, tool_name, params_json, result_json, success, noise_triggered, schema_version, timestamp) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (self._wm.step, agent_id, tool_name, json.dumps(params),
+                (step_number, agent_id, tool_name, json.dumps(params),
                  json.dumps(result), int(success), int(noise_triggered),
                  self._wm.schema_version, time.time()),
             )
@@ -524,7 +542,9 @@ class ToolRegistry:
 
     def get_current_step_logs(self) -> list[dict[str, Any]]:
         """All tool calls made in the current step."""
-        return self.get_call_log(step_number=self._wm.step)
+        if self._wm.step != self._current_step_num:
+            return []
+        return list(self._current_step_logs)
 
     def list_tools(self) -> list[str]:
         return list(_TOOL_SCHEMAS.keys())

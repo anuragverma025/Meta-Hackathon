@@ -1,0 +1,6 @@
+[TrainedAgent] Loading base model without Unsloth...
+[TrainedAgent] Could not load model: Qwen2ForCausalLM.__init__() got an unexpected keyword argument 'load_in_4bit'
+[TrainedAgent] Falling back to rule-based
+Agent ID: it_agent
+Model loaded: False
+PASS
