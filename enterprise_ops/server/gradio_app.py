@@ -14,6 +14,7 @@ TIMEOUT = 45
 
 _SC_DIR = Path(__file__).resolve().parent
 _REWARD_IMAGE = _SC_DIR / "reward_curves.png"
+_LOSS_IMAGE = _SC_DIR / "loss_curves.png"
 
 SCENARIO_CHOICES = [
     ("Scenario 1", "scenario_01"),
@@ -210,16 +211,29 @@ with gr.Blocks(theme=gr.themes.Monochrome(), title="EnterpriseOps Arena - Meta P
                 700 steps across 3 runs on Tesla T4 GPU
                 """
             )
-            _img_val = str(_REWARD_IMAGE) if _REWARD_IMAGE.is_file() else None
-            if _img_val is not None:
-                gr.Image(
-                    value=_img_val,
-                    label="Training Curves (700 steps)",
-                )
-            else:
-                gr.Markdown(
-                    f"_Plot not found. Add `reward_curves.png` in `{_SC_DIR.as_posix()}` to show training curves._"
-                )
+            with gr.Row():
+                with gr.Column():
+                    _img_val = str(_REWARD_IMAGE) if _REWARD_IMAGE.is_file() else None
+                    if _img_val is not None:
+                        gr.Image(
+                            value=_img_val,
+                            label="Reward Curves",
+                        )
+                    else:
+                        gr.Markdown(
+                            f"_Plot not found. Add `reward_curves.png` in `{_SC_DIR.as_posix()}`_"
+                        )
+                with gr.Column():
+                    _loss_val = str(_LOSS_IMAGE) if _LOSS_IMAGE.is_file() else None
+                    if _loss_val is not None:
+                        gr.Image(
+                            value=_loss_val,
+                            label="Loss Curves",
+                        )
+                    else:
+                        gr.Markdown(
+                            f"_Plot not found. Add `loss_curves.png` in `{_SC_DIR.as_posix()}`_"
+                        )
             gr.Markdown(
                 r"""
 | Metric | Value |
