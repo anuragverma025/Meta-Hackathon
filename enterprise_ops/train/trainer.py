@@ -132,6 +132,8 @@ class _CSVCallback(TrainerCallback):
         metrics = self._t._collect_episode_metrics(scenario_path, seed=step)
         self._t._write_csv_row(step, metrics)
         self._t.buffer.add_episode_reward(metrics["episode_score"])
+        reward_std = logs.get("reward_std", 0.0) if logs else 0.0
+        self._t._record_reward_std(reward_std)
         self._t._maybe_advance_curriculum()
 
     def on_save(self, args: Any, state: Any, control: Any, **kw: Any) -> None:
@@ -173,6 +175,7 @@ class EnterpriseOpsTrainer:
 
         self.current_scenario_idx: int = 0
         self.episode_log: list[dict[str, Any]] = []
+        self.recent_std_history: list[float] = []
 
         # LLM (loaded only when Unsloth is available)
         self.model: Any = None
@@ -337,7 +340,13 @@ class EnterpriseOpsTrainer:
     # Curriculum
     # ------------------------------------------------------------------
 
+    def _record_reward_std(self, std_value: float) -> None:
+        self.recent_std_history.append(std_value)
+        if len(self.recent_std_history) > 5:
+            self.recent_std_history.pop(0)
+
     def _maybe_advance_curriculum(self) -> None:
+        # Original advance logic - keep exactly as is
         if self.buffer.should_advance_curriculum(
             threshold=self.config.curriculum_threshold,
             window=self.config.curriculum_window,
@@ -345,11 +354,32 @@ class EnterpriseOpsTrainer:
             if self.current_scenario_idx < len(self.scenario_progression) - 1:
                 self.current_scenario_idx += 1
                 self.buffer.recent_rewards.clear()
+                self.recent_std_history.clear()
                 print(
                     f"  [Curriculum] Advanced -> scenario "
                     f"{self.current_scenario_idx + 1}: "
                     f"{self.scenario_progression[self.current_scenario_idx]}"
                 )
+                return
+
+        # NEW: Backtracking logic
+        # If reward_std has been below 0.05 for last 5 episodes
+        # AND we are not at the first scenario
+        # Go back one scenario to prevent policy collapse
+        if (
+            len(self.recent_std_history) >= 5
+            and all(s < 0.05 for s in self.recent_std_history)
+            and self.current_scenario_idx > 0
+        ):
+            self.current_scenario_idx -= 1
+            self.recent_std_history.clear()
+            self.buffer.recent_rewards.clear()
+            print(
+                f"  [Curriculum] Backtracking -> scenario "
+                f"{self.current_scenario_idx + 1}: "
+                f"{self.scenario_progression[self.current_scenario_idx]}"
+                f" (low variance detected)"
+            )
 
     # ------------------------------------------------------------------
     # Checkpoint saving (LoRA adapters only — NOT merged to 16-bit)
@@ -575,6 +605,7 @@ class EnterpriseOpsTrainer:
             if step > 0 and step % self.config.save_every == 0:
                 self.save_checkpoint(step)
 
+            self._record_reward_std(0.0)
             self._maybe_advance_curriculum()
 
         self.save_checkpoint(self.config.max_steps)
