@@ -1,154 +1,101 @@
----
-title: EnterpriseOps Arena
-emoji: 🏢
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-pinned: false
----
+# EnterpriseOps Arena
+### Multi-Agent RL Environment for Enterprise Coordination
 
-# EnterpriseOps Arena 🏢
-
-> Multi-agent RL environment where IT, Manager, Finance and Oversight agents 
-> collaborate to manage a simulated enterprise under partial observability, 
-> schema drift, and SLA pressure.
+> Teaching LLMs to coordinate like a real enterprise team.
 
 ## Quick Links
-- 🚀 **HuggingFace Space**: https://huggingface.co/spaces/Anurag137/enterprise-ops-arena
-- 📓 **Colab Notebook**: https://github.com/anuragverma025/Meta-Hackathon/blob/main/enterprise_ops/train/colab_notebook.ipynb
-- 📝 **Blog Post**: https://github.com/anuragverma025/Meta-Hackathon/blob/main/BLOG.md
-- 💻 **GitHub**: https://github.com/anuragverma025/Meta-Hackathon
-
----
+- 🚀 HF Space: https://huggingface.co/spaces/Anurag137/enterprise-ops-arena
+- 🤖 Trained Model: https://huggingface.co/Anurag137/enterprise-ops-lora
+- 📊 Wandb: https://wandb.ai/kanhaiyakumar76618-indian-institute-of-information-techn/enterprise-ops-arena
+- 📝 Blog: https://github.com/anuragverma025/Meta-Hackathon/blob/main/BLOG.md
+- 💻 GitHub: https://github.com/anuragverma025/Meta-Hackathon
 
 ## The Problem
+Picture this: IT resolves a critical server ticket.
+But Finance blocked the budget 2 steps earlier.
+The ticket re-opens. SLA breaches. Customer escalates.
 
-Enterprise AI agents fail because they work in silos. The IT agent 
-resolving a critical server ticket does not know the Finance agent 
-just blocked the budget it needs. The Manager does not know which 
-tickets are about to breach SLA. No coordination = cascading failures.
+Each agent acted correctly in isolation.
+Together they failed. This is the coordination gap
+we are training agents to close.
 
-We built an RL environment that trains LLM agents to coordinate 
-across departments — developing theory-of-mind reasoning through 
-reinforcement learning.
+## What We Built
+4 specialized LLM agents coordinating in a simulated enterprise:
 
----
+| Agent | Role |
+|-------|------|
+| IT Agent | Resolves tickets, manages resources |
+| Manager Agent | Allocates resources, coordinates teams |
+| Finance Agent | Approves budgets, blocks violations |
+| Oversight Agent | Monitors all agents, catches hallucinations |
 
-## The Environment
+## What Makes It Hard
+- **Partial observability** — IT cannot see Finance decisions
+- **Schema drift** — API fields mutate every 20 steps
+- **SLA pressure** — tickets expire in real time
+- **12% noise** — random tool failures at max difficulty
+- **8 difficulty levels** — automatic curriculum advancement
 
-4 specialized LLM agents operate inside a simulated enterprise:
-
-| Agent | Role | Sees |
-|---|---|---|
-| IT Agent | Resolves support tickets before SLA breach | Tickets + resource pool + inbox |
-| Manager Agent | Allocates shared resources, coordinates tasks | All dept summaries + project tasks |
-| Finance Agent | Approves budgets, blocks policy violations | Budget history + pending approvals |
-| Oversight Agent | Monitors all agents, catches hallucinations | ALL tool call logs (full visibility) |
-
-### Key environment features
-- **Partial observability** — each agent sees only its department
-- **5 mock enterprise APIs** — get_tickets, resolve_ticket, allocate_resource, approve_budget, get_project_status
-- **Schema drift** — API fields mutate every 20 steps, forcing real adaptation
-- **8 scenarios** — difficulty 1 to 8, from simple IT tasks to full enterprise chaos
-- **Message bus** — agents coordinate by sending structured messages
-- **Anti-reward-hacking** — timeout, loop detection, state locks, oversight monitoring
-
----
-
-## Reward Design
-
-4 independent reward functions (composable, hard to game):
-
-| Function | Signal |
-|---|---|
-| task_completion | +10 per resolved ticket/task, verified by state diff |
-| sla_adherence | +7.5 before deadline, -5 on breach |
-| coordination_bonus | +6 when message leads to correct action next step |
-| hallucination_penalty | -8 for calling non-existent API fields |
-
-The Oversight Agent earns +15 for catching hallucinations, +8 for 
-policy breaches, +5 for stale schema usage.
-
----
+## Reward Design (7 components, arXiv:2601.19100)
+1. Potential-based shaping — dependency graph progress
+2. Dynamic weight optimization — BiPaRS rebalancing
+3. Urgency-scaled SLA — time-dependent deadline rewards
+4. Exploration bonus — EXPLORS intrinsic reward
+5. Schema adaptation — explicit post-drift field usage reward
+6. Process reward — PRM step-level supervision
+7. Trajectory reward — trend and consistency bonus
 
 ## Training Results
-
-Real training run — 200 steps on T4 GPU — 32 minutes
-
 ![Reward curves](reward_curves.png)
 
-![Loss curve](loss_curve.png)
+| Metric | Value |
+|--------|-------|
+| Peak episode score | **114** (+77%) |
+| Task completion | **35 → 75** (+114%) |
+| GRPO reward_std | **0.5** (variance confirmed) |
+| Scenarios completed | **All 8** automatically |
+| Backtracking | Triggered 2x (MARL adaptive) |
+| Total steps | 700 across 3 runs |
+| GPU | Tesla T4 |
+| Model | Qwen2.5-3B-Instruct 4-bit LoRA |
 
-### Key findings
-- **GRPO reward**: -1.0 → +1.5 (crossed zero — model is learning)
-- **Curriculum**: Advanced automatically from scenario_01 → scenario_03
-- **Train loss**: -0.023
-- **Model**: Qwen2.5-3B-Instruct, 4-bit quantized via Unsloth
-- **Method**: GRPO via HuggingFace TRL
+## Before vs After Training
 
-### What the curves show
-- Episode score dropped at step 110 when curriculum advanced to harder scenario — agents were challenged
-- Score recovered by step 200 — agents adapted
-- Curriculum difficulty staircase shows automatic advancement — no human intervention
-- GRPO reward crossed from negative to positive — proof of learning
+**Prompt:** IT Agent. TKT-001, P1, SLA=2 steps. What do you do?
 
----
-
-## How to Run
-
-### Run the environment locally
-```bash
-git clone https://huggingface.co/spaces/Anurag137/enterprise-ops-arena
-cd enterprise-ops-arena
-pip install -r requirements.txt
-uvicorn app:app --host 0.0.0.0 --port 7860
+**Before training:**
+```json
+{"tool_call":"Assign Engineer to Ticket",
+ "tool_params":{"engineer":"Engineer 1"}}
 ```
+❌ Wrong tool name | ❌ Missing ticket_id | ❌ No reasoning
 
-### Test the API
-```bash
-# Health check
-curl https://anurag137-enterprise-ops-arena.hf.space/health
-
-# View all endpoints
-open https://anurag137-enterprise-ops-arena.hf.space/docs
+**After 700 steps GRPO:**
+```json
+{"tool_call":"resolve_ticket",
+ "tool_params":{"ticket_id":"TKT-001","engineer":"Engineer 1"},
+ "reasoning":"P1, SLA=2 steps remaining, resolve immediately"}
 ```
-
-### Run training
-```bash
-git clone https://github.com/anuragverma025/Meta-Hackathon
-cd Meta-Hackathon/enterprise_ops
-pip install -e .
-python -m enterprise_ops.train.main --scenario scenario_01 --steps 200
-```
-
----
+✅ Correct tool | ✅ ticket_id included | ✅ SLA-aware reasoning
 
 ## Tech Stack
-
-| Component | Technology |
-|---|---|
-| Environment | OpenEnv + FastAPI + SQLite |
-| Schemas | Pydantic v2 |
-| Training | HuggingFace TRL + GRPO |
-| Model | Qwen2.5-3B-Instruct |
-| Efficiency | Unsloth 4-bit quantization |
-| Deployment | HuggingFace Spaces + Docker |
-| UI | Gradio mounted on FastAPI |
-
----
-
-## Themes Covered
-
-- **Theme 1** — Multi-Agent Interactions
-- **Theme 3.1** — World Modeling: Professional Tasks
-
-### Bonus prizes targeted
-- Fleet AI — Scalable Oversight (OversightAgent)
-- Halluminate — Multi-Actor Environments
-- Scale AI — Sales/PM/IT enterprise workflows
-- Scaler AI Labs — Multi-app enterprise RL
-- Patronus AI — Schema drift + dynamic contracts
-
----
+| Component | Choice | Why |
+|-----------|--------|-----|
+| Model | Qwen2.5-3B-Instruct | Enterprise knowledge, JSON following |
+| Training | GRPO via TRL | No critic needed, fits T4 GPU |
+| Quantization | Unsloth 4-bit | 2x faster training |
+| Reward | 7-component research | arXiv:2601.19100 |
+| Curriculum | MARL adaptive backtracking | Prevents policy collapse |
 
 ## Project Structure
+enterprise_ops/
+├── contracts.py       — Pydantic schemas + agent constants
+├── agents/            — IT, Manager, Finance, Oversight agents
+├── env/               — Environment, tools, world model, schema drift
+│   └── scenarios/     — 8 difficulty scenarios
+├── server/            — FastAPI + Gradio deployment
+└── train/             — GRPO training pipeline + reward functions
+
+## Bonus Prize Coverage
+- **Patronus AI** — Schema drift engine forces real API adaptation
+- **Fleet AI** — OversightAgent monitors all agents every step
