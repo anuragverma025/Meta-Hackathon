@@ -25,8 +25,11 @@ from collections import deque
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-# -- Ensure /app is importable (HF Space: all files in WORKDIR) -------------
+# -- Ensure project root is importable (Handles both Local and HF layouts) ---
 _ROOT = Path(__file__).resolve().parent
+if _ROOT.name == "server":
+    _ROOT = _ROOT.parent
+
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
@@ -52,6 +55,7 @@ from contracts import (
 )
 from env.env import EnterpriseOpsEnv
 from agents import ITAgent, ManagerAgent, FinanceAgent
+from agents.trained_agent import TrainedITAgent
 from models import EnterpriseAction, EnterpriseObservation
 
 # ---------------------------------------------------------------------------
@@ -213,9 +217,14 @@ class EnterpriseEnvironment(Environment):
         # -- Pluggable reward - INTERFACE STABLE (Ayush overrides this) -----
         self.reward_fn: Callable[..., float] = default_reward_fn
 
+        # -- IT: rule-based by default; optional HuggingFace LoRA via set_use_trained_it()
+        self._rule_it_agent: Any = ITAgent()
+        self._trained_it_agent: Any | None = None
+        self._use_trained_it: bool = False
+
         # -- Rule-based fallback agents for untrained roles -----------------
         self._fallback_agents: dict[str, Any] = {
-            AGENT_IT: ITAgent(),
+            AGENT_IT: self._rule_it_agent,
             AGENT_MANAGER: ManagerAgent(AGENT_MANAGER),
             AGENT_FINANCE: FinanceAgent(AGENT_FINANCE),
         }
@@ -238,6 +247,24 @@ class EnterpriseEnvironment(Environment):
             f"max_steps={max_steps} | db={db_path}"
         )
 
+    def set_use_trained_it(self, use: bool) -> None:
+        """When True, IT fallback uses TrainedITAgent (LoRA); when False, rule-based ITAgent."""
+        self._use_trained_it = use
+        if use:
+            if self._trained_it_agent is None:
+                self._trained_it_agent = TrainedITAgent()
+            self._fallback_agents[AGENT_IT] = self._trained_it_agent
+        else:
+            self._fallback_agents[AGENT_IT] = self._rule_it_agent
+
+    def it_agent_status(self) -> str:
+        """Short status string for the Gradio UI."""
+        if not self._use_trained_it:
+            return "Rule-based agents active"
+        if self._trained_it_agent is not None and self._trained_it_agent.model is not None:
+            return "Trained LoRA model active (HuggingFace)"
+        return "Trained mode on — LoRA not loaded, using rule-based fallback"
+
     # ------------------------------------------------------------------
     # reset
     # ------------------------------------------------------------------
@@ -246,8 +273,11 @@ class EnterpriseEnvironment(Environment):
         self,
         scenario: Optional[str] = None,
         seed: Optional[int] = None,
+        use_trained_model: bool = False,
     ) -> EnterpriseObservation:
         """Reset the environment. Returns manager-agent view as primary obs."""
+        self.set_use_trained_it(use_trained_model)
+
         kwargs: dict[str, Any] = {}
         if scenario:
             if not scenario.endswith(".yaml"):
@@ -275,7 +305,11 @@ class EnterpriseEnvironment(Environment):
     # step (single-agent primary interface)
     # ------------------------------------------------------------------
 
-    def step(self, action: EnterpriseAction) -> dict[str, Any]:
+    def step(
+        self,
+        action: EnterpriseAction,
+        use_trained_model: Optional[bool] = None,
+    ) -> dict[str, Any]:
         """
         Execute one environment step.
 
@@ -287,13 +321,16 @@ class EnterpriseEnvironment(Environment):
         dict with keys: observation, reward, done, info
         """
 
+        if use_trained_model is not None:
+            self.set_use_trained_it(use_trained_model)
+
         # -- 1. Hard cap ----------------------------------------------------
         if self._done or self._step_count >= self._max_steps:
             self._done = True
             fallback_obs = next(iter(self._current_obs.values()))
             obs = _obs_to_openenv(fallback_obs, {}, 0.0, True)
             return {"observation": obs, "reward": 0.0, "done": True,
-                    "info": {"reason": "max_steps_exceeded"}}
+                    "info": {"reason": "max_steps_exceeded", "it_agent_status": self.it_agent_status()}}
 
         start_time = time.time()
         reward_penalty = 0.0
@@ -341,7 +378,11 @@ class EnterpriseEnvironment(Environment):
                        action.agent_id, json.dumps(action.to_dict(), default=str),
                        TIMEOUT_PENALTY, True, json.dumps({"elapsed": elapsed}))
             return {"observation": obs, "reward": TIMEOUT_PENALTY, "done": True,
-                    "info": {"reason": "timeout", "elapsed_s": elapsed}}
+                    "info": {
+                        "reason": "timeout",
+                        "elapsed_s": elapsed,
+                        "it_agent_status": self.it_agent_status(),
+                    }}
 
         # -- 6. Compute reward ----------------------------------------------
         base_reward = self.reward_fn(inner_result, all_actions)
@@ -397,6 +438,7 @@ class EnterpriseEnvironment(Environment):
                 "oversight_flags": inner_result.info.get("oversight_flags", []),
                 "schema_version": inner_result.info.get("schema_version", 1),
                 "tool_results": inner_result.info.get("tool_results", {}),
+                "it_agent_status": self.it_agent_status(),
             },
         }
 

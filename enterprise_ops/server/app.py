@@ -32,6 +32,7 @@ from gradio_app import demo
 class ResetRequest(BaseModel):
     scenario: Optional[str] = None
     seed: Optional[int] = None
+    use_trained_model: bool = False
 
 
 class ActionRequest(BaseModel):
@@ -41,6 +42,7 @@ class ActionRequest(BaseModel):
     message_to: Optional[str] = None
     message_content: Optional[str] = None
     reasoning: Optional[str] = None
+    use_trained_model: bool = False
 
 
 class MultiActionRequest(BaseModel):
@@ -85,8 +87,15 @@ def health() -> dict[str, str]:
 @app.post("/reset")
 def reset(req: ResetRequest) -> dict[str, Any]:
     """Reset the environment and return the primary observation."""
-    obs = env.reset(scenario=req.scenario, seed=req.seed)
-    return {"observation": obs.to_dict()}
+    obs = env.reset(
+        scenario=req.scenario,
+        seed=req.seed,
+        use_trained_model=req.use_trained_model,
+    )
+    return {
+        "observation": obs.to_dict(),
+        "it_agent_status": env.it_agent_status(),
+    }
 
 
 @app.post("/step", response_model=StepResponse)
@@ -100,7 +109,7 @@ def step(req: ActionRequest) -> StepResponse:
         message_content=req.message_content,
         reasoning=req.reasoning,
     )
-    result = env.step(action)
+    result = env.step(action, use_trained_model=req.use_trained_model)
     return StepResponse(
         observation=result["observation"].to_dict(),
         reward=result["reward"],
